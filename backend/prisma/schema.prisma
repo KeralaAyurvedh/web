@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  MANAGER
+  AGENT
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum CommissionType {
+  RECRUITMENT
+  SALES
+}
+
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  passwordHash  String
+  role          Role     @default(AGENT)
+  referralCode  String   @unique
+  referredById  String?
+  referredBy    User?    @relation("Referrals", fields: [referredById], references: [id])
+  referrals     User[]   @relation("Referrals")
+  orders        Order[]
+  commissionsRecv Commission[] @relation("Recipient")
+  commissionsSrc  Commission[] @relation("Source")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  price       Float
+  category    String
+  orders      Order[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Order {
+  id           String      @id @default(uuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id])
+  productId    String
+  product      Product     @relation(fields: [productId], references: [id])
+  totalAmount  Float
+  status       OrderStatus @default(PENDING)
+  paymentId    String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Commission {
+  id             String         @id @default(uuid())
+  recipientId    String
+  recipient      User           @relation("Recipient", fields: [recipientId], references: [id])
+  sourceUserId   String
+  sourceUser     User           @relation("Source", fields: [sourceUserId], references: [id])
+  amount         Float
+  type           CommissionType
+  level          Int            // e.g., 1 for direct recruit, 2 for upline 1, etc.
+  createdAt      DateTime       @default(now())
+}
