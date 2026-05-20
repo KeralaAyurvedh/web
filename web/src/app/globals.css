@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: #eef8f1;
+  --color-brand-100: #d5edda;
+  --color-brand-200: #aedab8;
+  --color-brand-300: #7ec290;
+  --color-brand-400: #55a86a;
+  --color-brand-500: #368e4c; /* Primary Dr Vaidya green */
+  --color-brand-600: #267039;
+  --color-brand-700: #1f592d;
+  --color-brand-800: #1a4725;
+  --color-brand-900: #0a3314; /* Dark green for sections */
+
+  --color-dark-bg: #121212;
+  --color-dark-card: #1e1e1e;
+  
+  --color-background: #ffffff;
+  --color-foreground: #0f172a;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+  }
+  .dark {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+  }
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    @apply antialiased;
+  }
+}
+
+/* Glassmorphism utilities */
+.glass-panel {
+  @apply bg-[#1e1e1e]/80 backdrop-blur-md border border-white/10 shadow-xl;
+}
+
+/* Hide scrollbar for carousels */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
