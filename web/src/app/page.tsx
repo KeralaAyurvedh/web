@@ -1,7 +1,9 @@
-import { ArrowRight, Star, StarHalf, Plus, Minus, ArrowUp, Activity, FileCheck, Award, HeartPulse, CheckCircle } from 'lucide-react';
+import { Star, StarHalf, ArrowUp, Activity, FileCheck, Award, HeartPulse, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
 import HeroSlideshow from '@/components/HeroSlideshow';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
+
+const apkDownloadUrl = process.env.NEXT_PUBLIC_APK_DOWNLOAD_URL ?? '/uploads/kerala-ayurvedh.apk';
 
 export default function Home() {
   return (
@@ -13,7 +15,7 @@ export default function Home() {
       {/* Authentic Ayurvedh Product Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 border-b border-slate-200 transition-colors duration-300">
         <div className="max-w-6xl mx-auto grid gap-12 items-center lg:grid-cols-2">
-          <div className="text-left">
+          <AnimateOnScroll className="text-left">
             <p className="text-sm uppercase font-semibold tracking-[0.4em] text-brand-600 mb-4">
               Authentic Ayurvedh
             </p>
@@ -21,7 +23,7 @@ export default function Home() {
               A trusted Kerala Ayurvedh product
             </h2>
             <p className="text-slate-600 mb-8 max-w-2xl transition-colors duration-300">
-              True weight loss isn't about starving the body, it's about balancing your Agni (digestive fire) and listening to nature.
+              True weight loss is not about starving the body, it is about balancing your Agni (digestive fire) and listening to nature.
             </p>
 
             <div className="grid gap-6 sm:grid-cols-2">
@@ -61,17 +63,19 @@ export default function Home() {
                 </p>
               </div>
             </div>
-          </div>
+          </AnimateOnScroll>
 
-          <div className="flex justify-center lg:justify-end">
-            <div className="w-full max-w-[520px] overflow-hidden rounded-[2rem] border border-slate-200 shadow-xl">
-              <img
+          <AnimateOnScroll className="flex justify-center lg:justify-end">
+            <div className="relative aspect-[4/5] w-full max-w-[520px] overflow-hidden rounded-[2rem] border border-slate-200 shadow-xl">
+              <Image
                 src="/photo.jpeg"
                 alt="Authentic Ayurvedh product"
-                className="w-full h-full object-cover"
+                fill
+                sizes="(min-width: 1024px) 520px, 100vw"
+                className="object-cover"
               />
             </div>
-          </div>
+          </AnimateOnScroll>
         </div>
       </section>
 
@@ -96,22 +100,21 @@ export default function Home() {
                 image: '/images/card-clarity.jpeg',
               },
               {
-                // large image placeholder: place your file at /public/images/harmony-large.jpg
                 image: '/images/harmony-large.jpeg',
                 isLarge: true,
               },
             ].map((card) => (
               card.isLarge ? (
                 <AnimateOnScroll key="harmony-image" className="overflow-hidden rounded-[1rem] border border-slate-200 bg-white shadow-sm">
-                  <div className="h-[420px] md:h-[520px] lg:h-[560px] overflow-hidden">
-                    <img src={card.image} alt="Harmony" className="w-full h-full object-cover" />
+                  <div className="relative h-[420px] md:h-[520px] lg:h-[560px] overflow-hidden">
+                    <Image src={card.image} alt="Harmony" fill sizes="(min-width: 1024px) 1152px, 100vw" className="object-cover" />
                   </div>
                 </AnimateOnScroll>
               ) : (
                 <AnimateOnScroll key={card.title} className="overflow-hidden">
                   <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm transition-transform duration-300 hover:-translate-y-1">
-                    <div className="h-72 overflow-hidden bg-slate-100">
-                      <img src={card.image} alt={card.title} className="w-full h-full object-cover" />
+                    <div className="relative h-72 overflow-hidden bg-slate-100">
+                      <Image src={card.image} alt={card.title ?? 'Kerala Ayurvedh principle'} fill sizes="(min-width: 768px) 1152px, 100vw" className="object-cover" />
                     </div>
                     <div className="p-8">
                       <h3 className="text-xl font-bold uppercase tracking-[0.3em] text-slate-900 mb-4">{card.title}</h3>
@@ -163,23 +166,25 @@ export default function Home() {
                   Get the Kerala Ayurvedh app for faster access
                 </h2>
                 <p className="text-slate-600 max-w-2xl mb-8">
-                  Download the app to explore products, receive wellness guidance, place orders quickly, and stay connected with our latest Ayurvedic offerings.
+                  Download the Android app to explore products, receive wellness guidance, place orders quickly, and stay connected with our latest Ayurvedic offerings.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <a href="#" className="inline-flex items-center justify-center rounded-full bg-brand-600 px-8 py-4 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 hover:bg-brand-500 transition-colors">
+                  <a href={apkDownloadUrl} className="inline-flex items-center justify-center rounded-full bg-brand-600 px-8 py-4 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 hover:bg-brand-500 transition-colors">
                     Download Android App
                   </a>
-                  <a href="#" className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-8 py-4 text-sm font-semibold text-slate-900 hover:border-brand-300 hover:text-brand-500 transition-colors">
-                    Download iOS App
-                  </a>
+                  <span className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-8 py-4 text-sm font-semibold text-slate-500">
+                    iOS coming later
+                  </span>
                 </div>
               </AnimateOnScroll>
             </div>
-            <AnimateOnScroll className="rounded-[2rem] overflow-hidden border border-slate-200 shadow-xl bg-white">
-              <img
-                src="https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1200&q=80"
+            <AnimateOnScroll className="relative min-h-[360px] rounded-[2rem] overflow-hidden border border-slate-200 shadow-xl bg-white">
+              <Image
+                src="/app-download.jpeg"
                 alt="Download app illustration"
-                className="w-full h-full object-cover"
+                fill
+                sizes="(min-width: 1024px) 460px, 100vw"
+                className="object-cover"
               />
             </AnimateOnScroll>
           </div>
@@ -208,7 +213,7 @@ export default function Home() {
           <div className="grid gap-6 md:grid-cols-3">
             <AnimateOnScroll delay={0.05} className="group">
               <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-2 group-hover:shadow-2xl">
-                <div className="mb-6 text-brand-600 text-4xl leading-none">“</div>
+                <div className="mb-6 text-brand-600 text-4xl leading-none">&ldquo;</div>
                 <p className="text-sm text-slate-700 mb-6 leading-relaxed">
                   I ordered the kerala weight loss powder it worked really well in with in 2 months i have lost 5kgs and my gut health is also really good. i recommend all to use who are serious on weight loss
                 </p>
@@ -228,7 +233,7 @@ export default function Home() {
 
             <AnimateOnScroll delay={0.1} className="group">
               <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-2 group-hover:shadow-2xl">
-                <div className="mb-6 text-brand-600 text-4xl leading-none">“</div>
+                <div className="mb-6 text-brand-600 text-4xl leading-none">&ldquo;</div>
                 <p className="text-sm text-slate-700 mb-6 leading-relaxed">
                   skin allergy cream is really fantastic. i faced ringgards allergies from last few months and i used some products but they didnt work and one of my frnd suggested me this product it worked well.  
                 </p>
@@ -249,7 +254,7 @@ export default function Home() {
 
             <AnimateOnScroll delay={0.15} className="group">
               <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-2 group-hover:shadow-2xl">
-                <div className="mb-6 text-brand-600 text-4xl leading-none">“</div>
+                <div className="mb-6 text-brand-600 text-4xl leading-none">&ldquo;</div>
                 <p className="text-sm text-slate-700 mb-6 leading-relaxed">
                   I loved the personal care from the team. The wellness bundle has helped my family feel calmer and more energetic, and the delivery was smooth too.
                 </p>

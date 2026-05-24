@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kerala Ayurvedh Website
 
-## Getting Started
+Public Next.js website for Kerala Ayurvedh product presentation and Android app download.
 
-First, run the development server:
+## Purpose
+
+- Present the Kerala Ayurvedh brand and product story.
+- Send customers and members to the Android app for login, ordering, payments, and network activity.
+- Serve as a public marketing site only. MLM logic, ordering, payment tracking, commissions, and admin work happen in the mobile app and backend.
+
+## Setup
 
 ```bash
+cd web
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Production build:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cd web
+npm run build
+npm run start
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Android App Download
 
-## Learn More
+The website download button uses this URL by default:
 
-To learn more about Next.js, take a look at the following resources:
+```text
+http://10.156.218.252:4000/uploads/kerala-ayurvedh.apk
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The APK file is stored at:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```text
+backend/public/kerala-ayurvedh.apk
+```
 
-## Deploy on Vercel
+To override the download URL for production, set:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```env
+NEXT_PUBLIC_APK_DOWNLOAD_URL="https://your-domain.com/uploads/kerala-ayurvedh.apk"
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Verification
+
+```bash
+cd web
+npm run lint
+npm run build
+```

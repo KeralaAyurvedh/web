@@ -16,7 +16,7 @@ export default function Dashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Welcome back, Partner!</h1>
-            <p className="text-slate-500">Here's what's happening with your network today.</p>
+            <p className="text-slate-500">Here is what is happening with your network today.</p>
           </div>
           {role === 'AGENT' && (
             <div className="mt-4 sm:mt-0 flex items-center bg-brand-50 border border-brand-200 p-3 rounded-xl">
@@ -53,7 +53,7 @@ export default function Dashboard() {
                 {role === 'SUPER_ADMIN' ? 'Total Payouts' : 'Total Earnings'}
               </p>
               <h3 className="text-2xl font-bold text-slate-900">
-                {role === 'SUPER_ADMIN' ? '₹45.2L' : '₹4,250'}
+                {role === 'SUPER_ADMIN' ? <>&#8377;45.2L</> : <>&#8377;4,250</>}
               </h3>
             </div>
           </div>
@@ -65,7 +65,7 @@ export default function Dashboard() {
             <div>
               <p className="text-sm font-medium text-slate-500">Sales Volume</p>
               <h3 className="text-2xl font-bold text-slate-900">
-                {role === 'SUPER_ADMIN' ? '₹1.2Cr' : '₹12,400'}
+                {role === 'SUPER_ADMIN' ? <>&#8377;1.2Cr</> : <>&#8377;12,400</>}
               </h3>
             </div>
           </div>
@@ -94,7 +94,7 @@ export default function Dashboard() {
                       Recruitment
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-600">₹1,000</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-600">&#8377;1,000</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">Today</td>
                 </tr>
                 <tr>
@@ -104,7 +104,7 @@ export default function Dashboard() {
                       Recruitment
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-600">₹500</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-600">&#8377;500</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">Yesterday</td>
                 </tr>
                 <tr>
@@ -114,7 +114,7 @@ export default function Dashboard() {
                       Sales (10%)
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-600">₹250</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-600">&#8377;250</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">May 15, 2026</td>
                 </tr>
               </tbody>

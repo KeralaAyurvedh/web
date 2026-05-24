@@ -1,0 +1,9 @@
+.env
+.env.*
+!.env.example
+
+# Generated deployment/runtime artifacts
+backend/backups/
+backend/public/*.apk
+backend/public/private-uploads/
+mobile/dist-*/

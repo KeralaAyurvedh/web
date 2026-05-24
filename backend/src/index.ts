@@ -1,27 +1,24 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import authRoutes from './routes/auth';
-import mlmRoutes from './routes/mlm';
-import productRoutes from './routes/products';
+import { config } from "./utils/config";
+import { prisma } from "./utils/prisma";
+import { createApp } from "./app";
 
-dotenv.config();
-
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-
-app.use('/api/auth', authRoutes);
-app.use('/api/mlm', mlmRoutes);
-app.use('/api/products', productRoutes);
-
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date() });
+const app = createApp();
+const server = app.listen(config.port, "0.0.0.0", () => {
+  console.log(`Kerala Ayurvedh backend running on http://0.0.0.0:${config.port}`);
 });
 
-const PORT = process.env.PORT || 5000;
+async function shutdown(signal: string) {
+  console.log(`${signal} received. Closing Kerala Ayurvedh backend.`);
+  server.close(async () => {
+    await prisma.$disconnect();
+    process.exit(0);
+  });
+}
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+process.on("SIGINT", () => {
+  void shutdown("SIGINT");
+});
+
+process.on("SIGTERM", () => {
+  void shutdown("SIGTERM");
 });

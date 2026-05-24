@@ -1,85 +1,99 @@
-import { Router, Request, Response } from 'express';
-import Razorpay from 'razorpay';
-import crypto from 'crypto';
-import prisma from '../utils/prisma';
-import { verifyToken } from '../middlewares/auth';
-import { distributeSalesCommission } from '../utils/mlm';
+import { Router } from "express";
+import { ProductAvailability, Role } from "@prisma/client";
+import { z } from "zod";
+import { requireAuth, requireRoles } from "../middlewares/auth";
+import { prisma } from "../utils/prisma";
 
-const router = Router();
+export const productsRouter = Router();
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || 'test',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || 'test'
+const productSchema = z.object({
+  name: z.string().min(2),
+  category: z.string().min(2).default("Wellness"),
+  description: z.string().min(2),
+  shortDescription: z.string().optional().default(""),
+  fullDescription: z.string().optional().default(""),
+  usageInstructions: z.string().optional().default(""),
+  benefits: z.string().optional().default(""),
+  size: z.string().optional().default(""),
+  price: z.coerce.number().positive(),
+  imageUrl: z.string().trim().optional().transform((value) => value === "" ? undefined : value).pipe(z.string().url().optional()),
+  stock: z.coerce.number().int().min(0).default(0),
+  availability: z.enum(ProductAvailability).default(ProductAvailability.AVAILABLE),
+  isActive: z.boolean().optional()
 });
 
-// List all products
-router.get('/', async (req, res) => {
-  try {
-    const products = await prisma.product.findMany();
-    res.json(products);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+productsRouter.get("/", requireAuth, async (req, res) => {
+  const products = await prisma.product.findMany({
+    where: req.user!.role === Role.ADMIN ? {} : { isActive: true },
+    orderBy: { createdAt: "desc" }
+  });
+
+  return res.json({
+    products: products.map((product) => ({
+      ...product,
+      stock: req.user!.role === Role.ADMIN ? product.stock : undefined,
+      availability: product.availability === ProductAvailability.AVAILABLE && product.stock <= 0
+        ? ProductAvailability.OUT_OF_STOCK
+        : product.availability
+    }))
+  });
+});
+
+productsRouter.get("/:id", requireAuth, async (req, res) => {
+  const product = await prisma.product.findUnique({
+    where: { id: String(req.params.id) }
+  });
+
+  if (!product || (req.user!.role !== Role.ADMIN && !product.isActive)) {
+    return res.status(404).json({ error: "Product not found" });
   }
+
+  return res.json({
+    product: {
+      ...product,
+      stock: req.user!.role === Role.ADMIN ? product.stock : undefined,
+      availability: product.availability === ProductAvailability.AVAILABLE && product.stock <= 0
+        ? ProductAvailability.OUT_OF_STOCK
+        : product.availability
+    }
+  });
 });
 
-// Create Order (Checkout)
-router.post('/checkout', verifyToken, async (req: Request, res: Response) => {
-  const { productId } = req.body;
-  const user = (req as any).user;
-
-  try {
-    const product = await prisma.product.findUnique({ where: { id: productId } });
-    if (!product) return res.status(404).json({ message: 'Product not found' });
-
-    // Mock Razorpay Order Creation
-    const rzpOrder = await razorpay.orders.create({
-      amount: product.price * 100, // in paise
-      currency: 'INR',
-      receipt: `receipt_${Date.now()}`
-    });
-
-    const order = await prisma.order.create({
-      data: {
-        userId: user.id,
-        productId,
-        totalAmount: product.price,
-        paymentId: rzpOrder.id, // Store razorpay order ID temporarily
-        status: 'PENDING'
-      }
-    });
-
-    res.json({ orderId: order.id, rzpOrderId: rzpOrder.id, amount: rzpOrder.amount });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+productsRouter.post("/", requireAuth, requireRoles(Role.ADMIN), async (req, res) => {
+  const parsed = productSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid product details", details: parsed.error.flatten() });
   }
+
+  const product = await prisma.product.create({
+    data: {
+      ...parsed.data,
+      createdById: req.user!.id
+    }
+  });
+
+  return res.status(201).json({ product });
 });
 
-// Verify Payment Webhook (Simplified for demonstration)
-router.post('/verify-payment', verifyToken, async (req: Request, res: Response) => {
-  const { orderId, rzpPaymentId, rzpSignature } = req.body;
-  const user = (req as any).user;
-
-  try {
-    const order = await prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-
-    // Normally verify signature here using crypto...
-    // Skipping exact signature match for test mock
-    
-    await prisma.order.update({
-      where: { id: orderId },
-      data: { status: 'PAID', paymentId: rzpPaymentId }
-    });
-
-    // Distribute MLM Sales Commission
-    await distributeSalesCommission(user.id, order.totalAmount);
-
-    res.json({ message: 'Payment verified successfully' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+productsRouter.put("/:id", requireAuth, requireRoles(Role.ADMIN), async (req, res) => {
+  const parsed = productSchema.partial().safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid product details", details: parsed.error.flatten() });
   }
+
+  const product = await prisma.product.update({
+    where: { id: String(req.params.id) },
+    data: parsed.data
+  });
+
+  return res.json({ product });
 });
 
-export default router;
+productsRouter.delete("/:id", requireAuth, requireRoles(Role.ADMIN), async (req, res) => {
+  const product = await prisma.product.update({
+    where: { id: String(req.params.id) },
+    data: { isActive: false }
+  });
+
+  return res.json({ product });
+});

@@ -1,35 +1,15 @@
-// Lightweight Prisma stub to allow the server to run in development
-// without a configured database. This avoids constructing the
-// PrismaClient at import time which prevents startup errors when
-// Prisma v7 configuration or DATABASE_URL is not provided.
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
+import "./config";
 
-const stubAsync = async () => null;
+const connectionString = process.env.DATABASE_URL;
 
-const noop = () => stubAsync;
+if (!connectionString) {
+  throw new Error("DATABASE_URL is required");
+}
 
-const prisma = {
-	user: {
-		findUnique: async () => null,
-		create: async (data: any) => ({ id: 'stub-id', ...data }),
-		findMany: async () => [],
-		count: async () => 0,
-	},
-	product: {
-		findMany: async () => [],
-		findUnique: async () => null,
-	},
-	order: {
-		create: async (data: any) => ({ id: 'stub-order', ...data }),
-		findUnique: async () => null,
-		update: async () => null,
-		aggregate: async () => ({ _sum: { totalAmount: 0 } }),
-	},
-	commission: {
-		create: async (data: any) => ({ id: 'stub-commission', ...data }),
-		aggregate: async () => ({ _sum: { amount: 0 } }),
-		findMany: async () => [],
-	},
-	$queryRaw: async () => [],
-};
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
 
-export default prisma as any;
+export const prisma = new PrismaClient({ adapter });

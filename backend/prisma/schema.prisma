@@ -7,71 +7,490 @@ datasource db {
 }
 
 enum Role {
-  SUPER_ADMIN
+  ADMIN
   MANAGER
-  AGENT
+  BETA_MANAGER
+  LEVEL_1
+  LEVEL_2
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum PlacementType {
+  NORMAL
+  BETA_MATRIX
 }
 
 enum OrderStatus {
+  CREATED
+  MONEY_COLLECTED_BY_LEVEL_2
+  MONEY_TRANSFERRED_TO_LEVEL_1
+  MONEY_TRANSFERRED_TO_MANAGER
+  MONEY_RECEIVED_BY_COMPANY
+  PRODUCT_RELEASED_BY_COMPANY
+  PRODUCT_RECEIVED_BY_MANAGER
+  PRODUCT_RECEIVED_BY_LEVEL_1
+  PRODUCT_RECEIVED_BY_LEVEL_2
+  DELIVERED_TO_CUSTOMER
+  CANCELLED
+}
+
+enum PaymentStatus {
   PENDING
+  PARTIALLY_RECEIVED
+  RECEIVED_BY_COMPANY
+  DISPUTED
+  CANCELLED
+}
+
+enum PaymentHandoverStatus {
+  PENDING
+  HANDED_OVER
+  RECEIVED
+  DISPUTED
+  CANCELLED
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
   PAID
-  FAILED
+  CANCELLED
+  ADJUSTED
 }
 
 enum CommissionType {
-  RECRUITMENT
-  SALES
+  DIRECT_LEVEL_1_JOIN
+  DIRECT_LEVEL_2_JOIN
+  UPLINE_LEVEL_2_JOIN
+  CUSTOMER_JOIN
+  BETA_MATRIX_PENDING
+  BETA_MATRIX_COMPLETION
+  MANUAL_ADJUSTMENT
+}
+
+enum UpgradeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ReassignmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum BetaMatrixStatus {
+  ACTIVE
+  COMPLETED
+  FROZEN
+  CANCELLED
+}
+
+enum ProductAvailability {
+  AVAILABLE
+  OUT_OF_STOCK
+  COMING_SOON
+}
+
+enum StockAdjustmentType {
+  ADD
+  REMOVE
+  CORRECTION
+}
+
+enum HelpTopicRole {
+  ALL
+  ADMIN
+  MANAGER
+  BETA_MANAGER
+  LEVEL_1
+  LEVEL_2
+  CUSTOMER
+}
+
+enum HelpTopicCategory {
+  MY_WORK
+  PRODUCTS
+  NETWORK
+  PAYMENTS
+  EARNINGS
+  ADMIN
+  SUPPORT
+  FAQ
+}
+
+enum FileAssetCategory {
+  PRODUCT_IMAGE
+  AADHAAR_IMAGE
+  PAN_IMAGE
+  PAYMENT_PROOF
+  OTHER
+}
+
+enum FileAssetStorageProvider {
+  LOCAL
+  S3
 }
 
 model User {
-  id            String   @id @default(uuid())
-  name          String
-  email         String   @unique
-  passwordHash  String
-  role          Role     @default(AGENT)
-  referralCode  String   @unique
-  referredById  String?
-  referredBy    User?    @relation("Referrals", fields: [referredById], references: [id])
-  referrals     User[]   @relation("Referrals")
-  orders        Order[]
-  commissionsRecv Commission[] @relation("Recipient")
-  commissionsSrc  Commission[] @relation("Source")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String     @id @default(uuid())
+  name             String
+  phone            String     @unique
+  email            String?    @unique
+  passwordHash     String
+  role             Role
+  status           UserStatus @default(ACTIVE)
+  referralCode     String     @unique
+  placementType    PlacementType @default(NORMAL)
+  companyPaymentConfirmedAt DateTime?
+  commissionProcessedAt DateTime?
+  resetPasswordToken    String?
+  resetPasswordExpires  DateTime?
+  aadhaarNumber         String?
+  panNumber             String?
+
+
+
+  sponsorId        String?
+  sponsor          User?      @relation("SponsorTree", fields: [sponsorId], references: [id])
+  downline         User[]     @relation("SponsorTree")
+
+  normalManagerId  String?
+  normalManager    User?      @relation("NormalManagerTree", fields: [normalManagerId], references: [id])
+  normalMembers    User[]     @relation("NormalManagerTree")
+
+  betaRootManagerId String?
+  betaRootManager   User?     @relation("BetaRootManagerTree", fields: [betaRootManagerId], references: [id])
+  betaMembers       User[]    @relation("BetaRootManagerTree")
+
+  createdById      String?
+  createdBy        User?      @relation("CreatedUsers", fields: [createdById], references: [id])
+  createdUsers     User[]     @relation("CreatedUsers")
+
+  products         Product[]  @relation("ProductCreator")
+  stockAdjustments ProductStockAdjustment[] @relation("StockAdjustmentActor")
+  orders           Order[]    @relation("CustomerOrders")
+  collectedOrders  Order[]    @relation("OrderCollector")
+  commissions      CommissionLedger[] @relation("CommissionReceiver")
+  commissionSources CommissionLedger[] @relation("CommissionSource")
+  moneySent        PaymentHandover[] @relation("MoneySender")
+  moneyReceived    PaymentHandover[] @relation("MoneyReceiver")
+  upgradeRequests  RoleUpgradeRequest[] @relation("UpgradeRequester")
+  approvedUpgrades RoleUpgradeRequest[] @relation("UpgradeApprover")
+  reassignmentRequests ReassignmentRequest[] @relation("ReassignmentSubject")
+  approvedReassignments ReassignmentRequest[] @relation("ReassignmentApprover")
+  approvedApplications MemberApplication[] @relation("ApplicationApprover")
+  createdFromApplications MemberApplication[] @relation("ApplicationCreatedUser")
+  createdHelpTopics HelpTopic[] @relation("HelpTopicCreator")
+  updatedHelpTopics HelpTopic[] @relation("HelpTopicUpdater")
+  uploadedFiles    FileAsset[] @relation("FileUploader")
+  auditLogs        AuditLog[] @relation("AuditActor")
+  betaMatrix       BetaMatrix? @relation("BetaManagerMatrix")
+  managerBetaMatrix BetaMatrix? @relation("RootManagerMatrix")
+
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([role])
+  @@index([status])
+  @@index([sponsorId])
+  @@index([normalManagerId])
+  @@index([betaRootManagerId])
+}
+
+model HelpTopic {
+  id               String            @id @default(uuid())
+  title            String
+  shortDescription String
+  content          String
+  role             HelpTopicRole     @default(ALL)
+  category         HelpTopicCategory @default(FAQ)
+  steps            Json              @default("[]")
+  relatedRoute     String?
+  videoUrl         String?
+  isActive         Boolean           @default(true)
+  sortOrder        Int               @default(0)
+  createdById      String?
+  createdBy        User?             @relation("HelpTopicCreator", fields: [createdById], references: [id])
+  updatedById      String?
+  updatedBy        User?             @relation("HelpTopicUpdater", fields: [updatedById], references: [id])
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([role])
+  @@index([category])
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+model FileAsset {
+  id                String                   @id @default(uuid())
+  originalName      String
+  mimeType          String
+  sizeBytes         Int
+  category          FileAssetCategory
+  storageProvider   FileAssetStorageProvider
+  bucket            String?
+  key               String
+  publicUrl         String?
+  uploadedById      String?
+  uploadedBy        User?                    @relation("FileUploader", fields: [uploadedById], references: [id])
+  relatedEntityType String?
+  relatedEntityId   String?
+  isPrivate         Boolean                  @default(true)
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  @@index([category])
+  @@index([storageProvider])
+  @@index([uploadedById])
+  @@index([relatedEntityType, relatedEntityId])
+  @@index([isPrivate])
 }
 
 model Product {
   id          String   @id @default(uuid())
   name        String
+  category    String   @default("Wellness")
   description String
-  price       Float
-  category    String
-  orders      Order[]
+  shortDescription String @default("")
+  fullDescription  String @default("")
+  usageInstructions String @default("")
+  benefits    String   @default("")
+  size         String   @default("")
+  price       Decimal  @db.Decimal(12, 2)
+  imageUrl    String?
+  stock       Int      @default(0)
+  availability ProductAvailability @default(AVAILABLE)
+  isActive    Boolean  @default(true)
+  createdById String?
+  createdBy   User?    @relation("ProductCreator", fields: [createdById], references: [id])
+  orderItems  OrderItem[]
+  stockAdjustments ProductStockAdjustment[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive])
+}
+
+model ProductStockAdjustment {
+  id          String              @id @default(uuid())
+  productId   String
+  product     Product             @relation(fields: [productId], references: [id])
+  actorId     String?
+  actor       User?               @relation("StockAdjustmentActor", fields: [actorId], references: [id])
+  type        StockAdjustmentType
+  quantity    Int
+  beforeStock Int
+  afterStock  Int
+  reason      String
+  createdAt   DateTime            @default(now())
+
+  @@index([productId])
+  @@index([actorId])
+  @@index([type])
+  @@index([createdAt])
 }
 
 model Order {
-  id           String      @id @default(uuid())
-  userId       String
-  user         User        @relation(fields: [userId], references: [id])
-  productId    String
-  product      Product     @relation(fields: [productId], references: [id])
-  totalAmount  Float
-  status       OrderStatus @default(PENDING)
-  paymentId    String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id             String        @id @default(uuid())
+  customerId     String
+  customer       User          @relation("CustomerOrders", fields: [customerId], references: [id])
+  collectedById  String?
+  collectedBy    User?         @relation("OrderCollector", fields: [collectedById], references: [id])
+  status         OrderStatus   @default(CREATED)
+  paymentStatus  PaymentStatus @default(PENDING)
+  totalAmount    Decimal       @db.Decimal(12, 2)
+  notes          String?
+  items          OrderItem[]
+  handovers      PaymentHandover[]
+  commissions    CommissionLedger[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([customerId])
+  @@index([collectedById])
+  @@index([status])
+  @@index([paymentStatus])
 }
 
-model Commission {
-  id             String         @id @default(uuid())
-  recipientId    String
-  recipient      User           @relation("Recipient", fields: [recipientId], references: [id])
-  sourceUserId   String
-  sourceUser     User           @relation("Source", fields: [sourceUserId], references: [id])
-  amount         Float
-  type           CommissionType
-  level          Int            // e.g., 1 for direct recruit, 2 for upline 1, etc.
-  createdAt      DateTime       @default(now())
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  unitPrice Decimal @db.Decimal(12, 2)
+  lineTotal Decimal @db.Decimal(12, 2)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model PaymentHandover {
+  id            String                @id @default(uuid())
+  orderId       String?
+  order         Order?                @relation(fields: [orderId], references: [id])
+  fromUserId    String?
+  fromUser      User?                 @relation("MoneySender", fields: [fromUserId], references: [id])
+  toUserId      String?
+  toUser        User?                 @relation("MoneyReceiver", fields: [toUserId], references: [id])
+  amount        Decimal               @db.Decimal(12, 2)
+  status        PaymentHandoverStatus @default(PENDING)
+  proofUrl      String?
+  notes         String?
+  handedOverAt  DateTime?
+  receivedAt    DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@index([orderId])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([status])
+}
+
+model CommissionLedger {
+  id              String           @id @default(uuid())
+  receiverId      String
+  receiver        User             @relation("CommissionReceiver", fields: [receiverId], references: [id])
+  sourceUserId    String?
+  sourceUser      User?            @relation("CommissionSource", fields: [sourceUserId], references: [id])
+  orderId         String?
+  order           Order?           @relation(fields: [orderId], references: [id])
+  betaMatrixId    String?
+  betaMatrix      BetaMatrix?      @relation(fields: [betaMatrixId], references: [id])
+  type            CommissionType
+  status          CommissionStatus @default(PENDING)
+  amount          Decimal          @db.Decimal(12, 2)
+  holdUntilMatrixComplete Boolean  @default(false)
+  notes           String?
+  approvedAt      DateTime?
+  paidAt          DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([receiverId])
+  @@index([sourceUserId])
+  @@index([orderId])
+  @@index([betaMatrixId])
+  @@index([status])
+  @@index([type])
+}
+
+model BetaMatrix {
+  id                 String           @id @default(uuid())
+  rootManagerId      String           @unique
+  rootManager        User             @relation("RootManagerMatrix", fields: [rootManagerId], references: [id])
+  betaManagerId      String           @unique
+  betaManager        User             @relation("BetaManagerMatrix", fields: [betaManagerId], references: [id])
+  status             BetaMatrixStatus @default(ACTIVE)
+  confirmedCustomers Int              @default(0)
+  requiredCustomers  Int              @default(216)
+  pendingAmount      Decimal          @default(0) @db.Decimal(12, 2)
+  completionAmount   Decimal          @default(108000) @db.Decimal(12, 2)
+  completedAt        DateTime?
+  commissions        CommissionLedger[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+}
+
+model RoleUpgradeRequest {
+  id              String        @id @default(uuid())
+  requesterId     String
+  requester       User          @relation("UpgradeRequester", fields: [requesterId], references: [id])
+  fromRole        Role
+  toRole          Role
+  targetSponsorId String?
+  status          UpgradeStatus @default(PENDING)
+  reason          String?
+  aadhaarNumber   String?
+  panNumber       String?
+  privacyConsentAcceptedAt DateTime?
+  approvedById    String?
+  approvedBy      User?         @relation("UpgradeApprover", fields: [approvedById], references: [id])
+  decidedAt       DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([requesterId])
+  @@index([status])
+}
+
+model ReassignmentRequest {
+  id              String             @id @default(uuid())
+  subjectUserId   String
+  subjectUser     User               @relation("ReassignmentSubject", fields: [subjectUserId], references: [id])
+  fromSponsorId   String?
+  toSponsorId     String
+  status          ReassignmentStatus @default(PENDING)
+  reason          String?
+  approvedById    String?
+  approvedBy      User?              @relation("ReassignmentApprover", fields: [approvedById], references: [id])
+  decidedAt       DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([subjectUserId])
+  @@index([status])
+}
+
+model MemberApplication {
+  id              String            @id @default(uuid())
+  name            String
+  phone           String
+  email           String?
+  requestedRole   Role
+  sponsorPhone    String?
+  aadhaarNumber   String?
+  panNumber       String?
+  privacyConsentAcceptedAt DateTime?
+  status          ApplicationStatus @default(PENDING)
+  rejectionReason String?
+  approvedById    String?
+  approvedBy      User?             @relation("ApplicationApprover", fields: [approvedById], references: [id])
+  approvedUserId  String?
+  approvedUser    User?             @relation("ApplicationCreatedUser", fields: [approvedUserId], references: [id])
+  passwordIssued  Boolean           @default(false)
+  decidedAt       DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([phone])
+  @@index([status])
+  @@index([requestedRole])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorId     String?
+  actor       User?    @relation("AuditActor", fields: [actorId], references: [id])
+  action      String
+  entityType  String
+  entityId    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([actorId])
+  @@index([entityType])
+  @@index([entityId])
 }

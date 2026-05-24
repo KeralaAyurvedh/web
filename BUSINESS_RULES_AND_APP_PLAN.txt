@@ -1,0 +1,514 @@
+KERALA AYURVEDH APPLICATION BUSINESS RULES AND DEVELOPMENT PLAN
+Generated: 2026-05-21
+
+============================================================
+1. PRODUCT DIRECTION
+============================================================
+
+The current website will remain a public marketing website.
+
+The real business application will be an Android mobile app built with Expo.
+
+The website should show:
+
+- Brand information
+- Product benefits
+- Product preview
+- Reviews
+- Support/contact information
+- Android app download link
+
+The website should not handle:
+
+- User login
+- Product purchase
+- Distributor dashboard
+- Admin dashboard
+- MLM logic
+- Payment collection
+- Commission calculation
+
+When a visitor clicks login, product, buy now, cart, distributor, or partner-related actions on the website, the website should guide them to download/open the Android app.
+
+For now, only Android will be supported.
+Later, iOS support can be added.
+
+============================================================
+2. APPLICATION TYPE
+============================================================
+
+Mobile application:
+
+- Android first
+- Built using Expo / React Native
+- Downloaded from website link
+- Not published to Play Store initially
+- iOS will be considered later
+
+Backend:
+
+- API server for login, users, products, orders, MLM, commissions, and admin operations
+- Database-backed
+- Manual payment tracking
+
+Website:
+
+- Existing Next.js project
+- Public marketing only
+- App download link added to website
+
+============================================================
+3. USER ROLES
+============================================================
+
+Required roles:
+
+1. Company Admin
+2. Manager
+3. Level 1 Agent
+4. Level 2 Agent
+5. Customer
+
+Company Admin:
+
+- Creates/manages managers
+- Manages all users
+- Manages products
+- Views all orders
+- Confirms payment received from managers
+- Releases products
+- Approves or records commissions
+- Views complete network
+- Views reports
+
+Manager:
+
+- Adds Level 1 Agents
+- Can have maximum 6 Level 1 Agents
+- Receives money from Level 1 Agents
+- Gives collected money to Company
+- Views own commissions
+- Views Level 1 and Level 2 network below them
+
+Level 1 Agent:
+
+- Added under a Manager
+- Adds Level 2 Agents
+- Can have maximum 6 Level 2 Agents
+- Receives money from Level 2 Agents
+- Gives collected money to Manager
+- Views own commissions
+- Views Level 2 Agents below them
+
+Level 2 Agent:
+
+- Added under a Level 1 Agent
+- Adds Customers
+- Collects money from Customers
+- Gives collected money to Level 1 Agent
+- Views own commissions
+- Views Customers added by them
+
+Customer:
+
+- Must login before buying/requesting product
+- Can view product catalog
+- Can request/order products
+- Gives payment manually to Level 2 Agent
+- Can view order status
+
+============================================================
+4. MLM STRUCTURE
+============================================================
+
+The MLM model is unilevel with fixed role levels.
+
+Structure:
+
+Company
+  -> Managers
+      -> Level 1 Agents
+          -> Level 2 Agents
+              -> Customers
+
+Capacity rules:
+
+- Company can have unlimited Managers
+- Each Manager can add maximum 6 Level 1 Agents
+- Each Level 1 Agent can add maximum 6 Level 2 Agents
+- Each Level 2 Agent can add Customers
+
+Important:
+
+- The Company is not limited to 6 Managers.
+- The 6-member limit starts from Manager downward.
+
+============================================================
+5. COMMISSION RULES
+============================================================
+
+Commission is fixed per new person added.
+
+Commission is not calculated as a percentage of product sale.
+
+Commission is not based on product price.
+
+Commission should be generated only after Company/Admin confirms payment.
+This avoids fake registrations creating commissions without real money received.
+
+Final commission table:
+
+New person added     Added by        Commission
+------------------------------------------------------------
+Level 1 Agent        Manager         Manager gets 1000
+
+Level 2 Agent        Level 1 Agent   Level 1 gets 1000
+                                     Manager gets 500
+
+Customer             Level 2 Agent   Level 2 gets 1000
+                                     Level 1 gets 0
+                                     Manager gets 0
+
+Detailed rules:
+
+1. Manager adds Level 1 Agent
+
+- Manager receives 1000 commission
+- Commission is created only after company confirms payment
+
+2. Level 1 Agent adds Level 2 Agent
+
+- Level 1 Agent receives 1000 commission
+- Manager above Level 1 receives 500 commission
+- Commission is created only after company confirms payment
+
+3. Level 2 Agent adds Customer
+
+- Level 2 Agent receives 1000 commission
+- Level 1 Agent receives nothing
+- Manager receives nothing
+- Commission is created only after company confirms payment
+
+============================================================
+6. PAYMENT AND PRODUCT FLOW
+============================================================
+
+There will be no online payment page at first.
+
+Payment will be handled manually by cash or UPI.
+
+Flow:
+
+1. Customer gives money to Level 2 Agent.
+2. Level 2 Agent gives collected money to Level 1 Agent.
+3. Level 1 Agent gives collected money to Manager.
+4. Manager gives collected money to Company.
+5. Company confirms money received.
+6. Company releases the product.
+7. Product is distributed back down the chain.
+
+Product delivery path:
+
+Company
+  -> Manager
+      -> Level 1 Agent
+          -> Level 2 Agent
+              -> Customer
+
+The app should track these stages manually.
+
+Possible order/payment statuses:
+
+- ORDER_CREATED
+- MONEY_COLLECTED_BY_LEVEL_2
+- MONEY_TRANSFERRED_TO_LEVEL_1
+- MONEY_TRANSFERRED_TO_MANAGER
+- MONEY_RECEIVED_BY_COMPANY
+- PRODUCT_RELEASED_BY_COMPANY
+- PRODUCT_RECEIVED_BY_MANAGER
+- PRODUCT_RECEIVED_BY_LEVEL_1
+- PRODUCT_RECEIVED_BY_LEVEL_2
+- DELIVERED_TO_CUSTOMER
+- CANCELLED
+
+============================================================
+7. PRODUCT ORDER RULES
+============================================================
+
+- No one can buy product without login.
+- Customer must login before placing product request/order.
+- Product price must be entered/known before creating order.
+- Payment is manual, not online.
+- Company releases product only after confirming received money.
+
+============================================================
+8. DATABASE ENTITIES NEEDED
+============================================================
+
+Core database tables/models:
+
+- users
+- products
+- orders
+- order_items
+- payments
+- commissions
+- wallets or earnings ledger
+- network_links
+- product_transfer_logs
+- audit_logs
+
+Users table should include:
+
+- id
+- name
+- phone
+- email, optional
+- password hash
+- role
+- parent/sponsor id
+- manager id, if applicable
+- level1 id, if applicable
+- level2 id, if applicable
+- referral code
+- status
+- created date
+
+Products table should include:
+
+- id
+- name
+- description
+- price
+- images
+- stock
+- active/inactive status
+
+Orders table should include:
+
+- id
+- customer id
+- placed through Level 2 id
+- total amount
+- status
+- payment status
+- created date
+
+Commissions table should include:
+
+- id
+- receiver user id
+- source user id
+- trigger type
+- amount
+- status
+- approved by admin id
+- created date
+
+Payment tracking should include:
+
+- order id
+- amount
+- collected by
+- transferred to
+- current holder
+- company confirmation status
+
+============================================================
+9. DEVELOPMENT PHASES
+============================================================
+
+Phase 1: Foundation
+
+- Finalize backend technology
+- Create database schema
+- Create authentication API
+- Create role-based access rules
+- Create seed admin account
+
+Phase 2: User and MLM Network
+
+- Admin creates Managers
+- Managers add Level 1 Agents
+- Level 1 Agents add Level 2 Agents
+- Level 2 Agents add Customers
+- Enforce max 6 Level 1 per Manager
+- Enforce max 6 Level 2 per Level 1
+- Generate referral/network links
+
+Phase 3: Commission Logic
+
+- Implement fixed commission rules
+- Generate commission only after company payment confirmation
+- Create commission ledger
+- Show earnings by role
+
+Phase 4: Product Catalog and Orders
+
+- Admin product management
+- Mobile product catalog
+- Customer login required before order
+- Manual payment/order request flow
+- Product release flow
+
+Phase 5: Android Expo App
+
+- Login screen
+- Role-based dashboard
+- Product catalog
+- Order creation
+- Network view
+- Commission view
+- Payment handover tracking
+- Admin screens if required in mobile app
+
+Phase 6: Website Link Integration
+
+- Add Android APK/app link to website
+- Redirect login/product/buy actions to app download section or app link
+- Add clear download button
+
+Phase 7: Testing and Deployment
+
+- Test network capacity rules
+- Test commission rules
+- Test manual payment statuses
+- Test product transfer statuses
+- Build Android APK
+- Host APK file or download link
+- Deploy backend
+- Deploy website
+
+============================================================
+10. IMPORTANT IMPLEMENTATION RULES
+============================================================
+
+- Commission must not be generated on fake registration alone.
+- Commission must wait for company/admin payment confirmation.
+- Customers cannot order without login.
+- No online payment integration initially.
+- Company can have unlimited Managers.
+- Manager can only add up to 6 Level 1 Agents.
+- Level 1 Agent can only add up to 6 Level 2 Agents.
+- Level 2 Agent can add Customers.
+- Customer commission goes only to Level 2 Agent.
+- Level 1 and Manager get nothing when Level 2 adds Customer.
+
+============================================================
+11. PRODUCTION SAFETY RULES
+============================================================
+
+These rules protect the MLM model from breaking after the system goes live.
+
+No hard delete:
+
+- Users, orders, commissions, payments, and network records must not be hard deleted once they are involved in business activity.
+- Use status changes instead of deletion.
+- Historical data must remain available for audits and reports.
+
+User statuses:
+
+- ACTIVE
+- INACTIVE
+- SUSPENDED
+- TERMINATED
+
+Meaning:
+
+- ACTIVE users can login and perform their role actions.
+- INACTIVE users keep history but cannot add users or earn new commissions.
+- SUSPENDED users are temporarily blocked.
+- TERMINATED users are permanently removed from operations, but their history stays.
+
+Role upgrades:
+
+- A Customer can request to become Level 2 or Level 1.
+- A Level 2 can request to become Level 1.
+- A Level 1 can request to become Manager.
+- Role changes require Company/Admin approval.
+- Past orders and commissions must not be recalculated after upgrade.
+- New commissions follow the new role only from the approval date.
+
+Reassignment:
+
+- Only Company/Admin can reassign users from one upline to another.
+- Reassignment affects future commissions only.
+- Past commissions must not automatically change.
+- Every reassignment must create an audit log.
+
+Inactive upline handling:
+
+- If Level 2 leaves, their old customers remain historically linked.
+- If Level 1 leaves, their Level 2 agents remain historically linked.
+- If Manager leaves, their network remains historically linked.
+- Admin can freeze or manually reassign the affected branch.
+- Inactive users cannot create new downline users or earn future commissions.
+
+Duplicate account protection:
+
+- Phone number should be required and unique.
+- Email can be optional.
+- Admin should be able to identify/handle duplicate account disputes later.
+
+Commission ledger:
+
+- Commissions must be ledger entries.
+- Do not silently edit old commission rows.
+- Corrections should be made through adjustment entries.
+
+Commission statuses:
+
+- PENDING
+- APPROVED
+- PAID
+- CANCELLED
+- ADJUSTED
+
+Payment handover ledger:
+
+- Manual money movement must be tracked step by step.
+- Each handover should record from user, to user, amount, status, date, and optional proof.
+
+Payment handover statuses:
+
+- PENDING
+- HANDED_OVER
+- RECEIVED
+- DISPUTED
+- CANCELLED
+
+Audit logs:
+
+- Important actions must be logged.
+- Examples: user creation, role upgrade, reassignment, payment confirmation, commission generation, commission adjustment, product release.
+
+Beta matrix safeguards:
+
+- Each Manager can have only one Beta Manager.
+- Beta matrix completion counts only confirmed customers.
+- Cancelled or unpaid customers do not count.
+- Main Manager's 500-per-customer matrix commission remains pending until all 216 customers are confirmed.
+- Once the Beta Matrix reaches 216 confirmed customers, release 108000 to the main Manager.
+- After completion, the matrix is locked.
+- No second Beta Manager or second matrix can be created under the same Manager.
+
+Final production rule:
+
+- Network placement is permanent for history.
+- Changes are allowed only through admin-approved upgrade or reassignment records.
+- Past commissions never change automatically.
+- Future commissions follow the new approved structure.
+
+============================================================
+12. CURRENT NEXT STEP
+============================================================
+
+The current website code has been cleaned and verified with lint/build.
+
+The next development step should be:
+
+1. Create backend/database schema.
+2. Create authentication and role system.
+3. Create MLM network creation APIs.
+4. Create commission calculation after company payment confirmation.
+5. Start Expo Android app screens.
