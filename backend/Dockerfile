@@ -1,19 +1,10 @@
-FROM node:20-alpine AS deps
+FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci
-
-FROM deps AS builder
-WORKDIR /app
+RUN npm install
 COPY . .
-RUN npm run build
+RUN npx prisma generate && npm run build
 
-FROM node:20-alpine AS runner
-WORKDIR /app
 ENV NODE_ENV=production
-COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
 EXPOSE 4000
-CMD ["node", "dist/index.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/seed.js && node dist/index.js"]
