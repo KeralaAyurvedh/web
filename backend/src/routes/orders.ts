@@ -106,12 +106,23 @@ ordersRouter.post("/", requireAuth, async (req, res) => {
 
   const totalAmount = orderItems.reduce((sum, item) => sum + Number(item.lineTotal), 0);
 
-  const order = await prisma.$transaction(async (tx) => {
+  try {
+    const order = await prisma.$transaction(async (tx) => {
     for (const item of parsed.data.items) {
-      await tx.product.update({
-        where: { id: item.productId },
+      const product = productById.get(item.productId)!;
+      const updated = await tx.product.updateMany({
+        where: {
+          id: item.productId,
+          isActive: true,
+          availability: ProductAvailability.AVAILABLE,
+          stock: { gte: item.quantity }
+        },
         data: { stock: { decrement: item.quantity } }
       });
+
+      if (updated.count !== 1) {
+        throw new Error(`${product.name} does not have enough available stock`);
+      }
     }
 
     return tx.order.create({
@@ -128,15 +139,18 @@ ordersRouter.post("/", requireAuth, async (req, res) => {
     });
   });
 
-  await writeAuditLog({
-    actorId: req.user!.id,
-    action: "ORDER_CREATED",
-    entityType: "Order",
-    entityId: order.id,
-    metadata: { customerId: customer.id, totalAmount }
-  });
+    await writeAuditLog({
+      actorId: req.user!.id,
+      action: "ORDER_CREATED",
+      entityType: "Order",
+      entityId: order.id,
+      metadata: { customerId: customer.id, totalAmount }
+    });
 
-  return res.status(201).json({ order });
+    return res.status(201).json({ order });
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "Could not create order" });
+  }
 });
 
 ordersRouter.post("/:id/confirm-company-payment", requireAuth, requireRoles(Role.ADMIN), async (req, res) => {

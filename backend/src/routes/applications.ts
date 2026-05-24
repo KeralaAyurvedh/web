@@ -13,8 +13,11 @@ const applicationSchema = z.object({
   requestedRole: z.enum([Role.MANAGER, Role.BETA_MANAGER, Role.LEVEL_1, Role.LEVEL_2, Role.CUSTOMER]).optional(),
   sponsorPhone: z.string().min(6).optional(),
   sponsorReferralCode: z.string().optional(),
-  aadhaarNumber: z.string().min(12, "A valid 12-digit Aadhaar number is required"),
-  panNumber: z.string().min(10, "A valid 10-character PAN number is required"),
+  aadhaarNumber: z.string().regex(/^\d{12}$/, "A valid 12-digit Aadhaar number is required"),
+  panNumber: z.preprocess(
+    (value) => typeof value === "string" ? value.trim().toUpperCase() : value,
+    z.string().regex(/^[A-Z]{5}\d{4}[A-Z]$/, "A valid 10-character PAN number is required")
+  ),
   privacyConsentAccepted: z.literal(true, {
     error: "Privacy consent is required before submitting Aadhaar/PAN details"
   })

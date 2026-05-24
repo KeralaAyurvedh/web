@@ -491,8 +491,11 @@ usersRouter.post("/me/upgrade-request", requireAuth, async (req, res) => {
   const parsed = z.object({
     toRole: z.enum([Role.LEVEL_1, Role.LEVEL_2]),
     reason: z.string().min(2, "Please provide a reason or message for your upgrade request."),
-    aadhaarNumber: z.string().min(4, "Aadhaar number is required."),
-    panNumber: z.string().min(4, "PAN number is required."),
+    aadhaarNumber: z.string().regex(/^\d{12}$/, "A valid 12-digit Aadhaar number is required."),
+    panNumber: z.preprocess(
+      (value) => typeof value === "string" ? value.trim().toUpperCase() : value,
+      z.string().regex(/^[A-Z]{5}\d{4}[A-Z]$/, "A valid 10-character PAN number is required.")
+    ),
     privacyConsentAccepted: z.literal(true, {
       error: "Privacy consent is required before submitting Aadhaar/PAN details"
     })

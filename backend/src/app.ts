@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import path from "path";
 import { config } from "./utils/config";
@@ -49,6 +49,14 @@ export function createApp() {
 
   app.use((_req, res) => {
     res.status(404).json({ error: "Route not found" });
+  });
+
+  app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    const message = error instanceof Error ? error.message : "Internal server error";
+    if (config.nodeEnv !== "production") {
+      return res.status(500).json({ error: message });
+    }
+    return res.status(500).json({ error: "Internal server error" });
   });
 
   return app;

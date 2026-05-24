@@ -6,7 +6,7 @@ declare const process: { env?: { EXPO_PUBLIC_API_URL?: string } } | undefined;
 export const API_URL =
   typeof process !== "undefined" && process.env?.EXPO_PUBLIC_API_URL
     ? process.env.EXPO_PUBLIC_API_URL
-    : "http://10.156.218.252:4000";
+    : "https://api.keralaayurvedh.com";
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}) {
   const response = await fetch(`${API_URL}${path}`, {

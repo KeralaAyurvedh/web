@@ -4,20 +4,28 @@ import { prisma } from "./utils/prisma";
 
 async function main() {
   const phone = process.env.SEED_ADMIN_PHONE ?? "9999999999";
-  const password = process.env.SEED_ADMIN_PASSWORD ?? "Admin@12345";
-  const passwordHash = await bcrypt.hash(password, 12);
+  const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD;
+  const existingAdmin = await prisma.user.findUnique({ where: { phone } });
+
+  if (process.env.NODE_ENV === "production" && !existingAdmin && !seedAdminPassword) {
+    throw new Error("SEED_ADMIN_PASSWORD is required for first production seed");
+  }
+
+  const password = seedAdminPassword ?? "Admin@12345";
+  const passwordHash = seedAdminPassword || !existingAdmin ? await bcrypt.hash(password, 12) : undefined;
+  const createPasswordHash = passwordHash ?? await bcrypt.hash(password, 12);
 
   const admin = await prisma.user.upsert({
     where: { phone },
     update: {
-      passwordHash,
+      ...(passwordHash ? { passwordHash } : {}),
       status: "ACTIVE",
       role: Role.ADMIN
     },
     create: {
       name: "Company Admin",
       phone,
-      passwordHash,
+      passwordHash: createPasswordHash,
       role: Role.ADMIN,
       referralCode: "ADMIN000001"
     }

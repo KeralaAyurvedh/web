@@ -1,97 +1,21 @@
-"use client";
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function Register() {
-  const router = useRouter();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [referralCode, setReferralCode] = useState('');
-  
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    router.push('/dashboard');
-  };
-
   return (
-    <div className="flex-grow flex items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 glass-panel p-10 rounded-3xl">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900">
-            Join the Network
-          </h2>
-          <p className="mt-2 text-center text-sm text-slate-600">
-            Start earning with our Unilevel MLM platform.
-          </p>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleRegister}>
-          <div className="rounded-md shadow-sm space-y-4">
-            <div>
-              <label htmlFor="name" className="sr-only">Full Name</label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                required
-                className="appearance-none relative block w-full px-3 py-3 border border-slate-300 placeholder-slate-500 text-slate-900 rounded-xl focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm"
-                placeholder="Full Name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="email-address" className="sr-only">Email address</label>
-              <input
-                id="email-address"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="appearance-none relative block w-full px-3 py-3 border border-slate-300 placeholder-slate-500 text-slate-900 rounded-xl focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                className="appearance-none relative block w-full px-3 py-3 border border-slate-300 placeholder-slate-500 text-slate-900 rounded-xl focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="referral" className="sr-only">Referral Code (Optional)</label>
-              <input
-                id="referral"
-                name="referral"
-                type="text"
-                className="appearance-none relative block w-full px-3 py-3 border border-slate-300 placeholder-slate-500 text-slate-900 rounded-xl focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm"
-                placeholder="Referral Code (Optional)"
-                value={referralCode}
-                onChange={(e) => setReferralCode(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div>
-            <button
-              type="submit"
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-brand-600 hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 transition-all shadow-md"
-            >
-              Register & Earn
-            </button>
-          </div>
-        </form>
+    <div className="flex-grow bg-slate-50 px-4 py-20 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <p className="mb-3 text-sm font-semibold uppercase tracking-[0.35em] text-brand-600">Applications</p>
+        <h1 className="mb-4 text-3xl font-bold text-slate-900">Registration happens in the Android app</h1>
+        <p className="mx-auto mb-8 max-w-xl text-slate-600">
+          New member and customer applications require sponsor details, Aadhaar/PAN consent, and Company Admin review.
+          Use the mobile app so the application follows the correct approval flow.
+        </p>
+        <Link
+          href="/#download-app"
+          className="inline-flex items-center justify-center rounded-full bg-brand-600 px-8 py-4 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 transition-colors hover:bg-brand-500"
+        >
+          Download Android App
+        </Link>
       </div>
     </div>
   );
