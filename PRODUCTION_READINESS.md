@@ -7,7 +7,7 @@ This file tracks the remaining tasks that require real business or hosting detai
 - Production domain name, for example `keralaayurvedh.com`.
 - Backend hosting provider and server access.
 - Production PostgreSQL database URL.
-- S3-compatible storage bucket, endpoint, access key, and secret key.
+- Cloudflare R2 bucket, endpoint, access key, and secret key.
 - Brevo/SMTP username, password, sender email, and verified sender domain.
 - Official support email address. The app uses email-only support communication.
 - Approved privacy policy and consent text for Aadhaar/PAN number collection.
@@ -30,14 +30,14 @@ SMTP_PASS="real-smtp-password"
 SMTP_FROM_EMAIL="verified-sender@your-domain.com"
 SMTP_FROM_NAME="Kerala Ayurvedh"
 SUPPORT_EMAIL="support@your-domain.com"
-STORAGE_PROVIDER="s3"
-STORAGE_BUCKET="real-bucket-name"
-STORAGE_REGION="us-east-1"
-STORAGE_ENDPOINT="https://storage-provider-endpoint"
-STORAGE_ACCESS_KEY_ID="real-access-key"
-STORAGE_SECRET_ACCESS_KEY="real-secret-key"
-STORAGE_PUBLIC_BASE_URL="https://cdn-or-public-bucket-url"
-STORAGE_FORCE_PATH_STYLE=false
+STORAGE_PROVIDER="r2"
+R2_BUCKET="real-bucket-name"
+R2_REGION="auto"
+R2_ENDPOINT="https://account-id.r2.cloudflarestorage.com"
+R2_ACCESS_KEY_ID="real-access-key"
+R2_SECRET_ACCESS_KEY="real-secret-key"
+R2_PUBLIC_BASE_URL="https://public-r2-domain-or-custom-domain"
+R2_FORCE_PATH_STYLE=true
 STORAGE_SIGNED_URL_EXPIRES_SECONDS=300
 ```
 

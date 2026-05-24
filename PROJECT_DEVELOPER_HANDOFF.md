@@ -66,7 +66,7 @@ Backend:
 - bcrypt password hashing
 - Zod validation
 - Brevo SMTP via custom email utility
-- Local and S3-style storage abstraction
+- Local and Cloudflare R2 storage abstraction
 
 Mobile:
 
@@ -367,7 +367,7 @@ Product image handling:
 - Product images can be uploaded by Admin.
 - Product images are public.
 - Local development stores them under public upload storage.
-- Production can use S3-compatible storage.
+- Production can use Cloudflare R2 storage.
 
 Stock rule:
 
@@ -618,7 +618,7 @@ Pending:
 Production storage abstraction added:
 
 - Local provider for development.
-- S3-compatible provider for production.
+- Cloudflare R2 provider for production.
 - Backend-only credentials.
 - Mobile never stores storage secrets.
 
@@ -628,13 +628,13 @@ Environment variables:
 STORAGE_PROVIDER="local"
 LOCAL_UPLOAD_DIR="public"
 LOCAL_PRIVATE_UPLOAD_DIR="private-uploads"
-STORAGE_BUCKET=""
-STORAGE_REGION="us-east-1"
-STORAGE_ENDPOINT=""
-STORAGE_ACCESS_KEY_ID=""
-STORAGE_SECRET_ACCESS_KEY=""
-STORAGE_PUBLIC_BASE_URL=""
-STORAGE_FORCE_PATH_STYLE=false
+R2_BUCKET=""
+R2_REGION="auto"
+R2_ENDPOINT=""
+R2_ACCESS_KEY_ID=""
+R2_SECRET_ACCESS_KEY=""
+R2_PUBLIC_BASE_URL=""
+R2_FORCE_PATH_STYLE=false
 STORAGE_SIGNED_URL_EXPIRES_SECONDS=300
 ```
 
@@ -1033,7 +1033,7 @@ If Expo export fails with Hermes permission in sandbox, run with normal system p
 
 - Never commit `.env`.
 - Never store SMTP password in mobile app.
-- Never store storage/S3 secret keys in mobile app.
+- Never store storage/R2 secret keys in mobile app.
 - Admin-only APIs must be protected by backend, not only hidden in UI.
 - Non-admin users must never receive upline private data.
 - Customer must never see Network/Tree/Earnings.

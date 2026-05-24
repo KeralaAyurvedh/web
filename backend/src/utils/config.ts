@@ -6,7 +6,7 @@ const defaultJwtSecret = "change-this-secret-before-production";
 const nodeEnv = process.env.NODE_ENV ?? "development";
 const jwtSecret = process.env.JWT_SECRET ?? defaultJwtSecret;
 const smtpSecure = process.env.SMTP_SECURE === "true" || process.env.SMTP_PORT === "465";
-const storageProvider = process.env.STORAGE_PROVIDER === "s3" ? "s3" : "local";
+const storageProvider = process.env.STORAGE_PROVIDER === "r2" ? "r2" : "local";
 const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",").map((origin) => origin.trim()).filter(Boolean)
   : undefined;
@@ -46,13 +46,13 @@ export const config = {
     provider: storageProvider,
     localUploadDir: process.env.LOCAL_UPLOAD_DIR || "public",
     localPrivateUploadDir: process.env.LOCAL_PRIVATE_UPLOAD_DIR || "private-uploads",
-    bucket: process.env.STORAGE_BUCKET || undefined,
-    region: process.env.STORAGE_REGION || "us-east-1",
-    endpoint: process.env.STORAGE_ENDPOINT || undefined,
-    accessKeyId: process.env.STORAGE_ACCESS_KEY_ID || undefined,
-    secretAccessKey: process.env.STORAGE_SECRET_ACCESS_KEY || undefined,
-    publicBaseUrl: process.env.STORAGE_PUBLIC_BASE_URL || undefined,
-    forcePathStyle: process.env.STORAGE_FORCE_PATH_STYLE === "true",
+    bucket: process.env.R2_BUCKET || undefined,
+    region: process.env.R2_REGION || "auto",
+    endpoint: process.env.R2_ENDPOINT || undefined,
+    accessKeyId: process.env.R2_ACCESS_KEY_ID || undefined,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || undefined,
+    publicBaseUrl: process.env.R2_PUBLIC_BASE_URL || undefined,
+    forcePathStyle: process.env.R2_FORCE_PATH_STYLE === "true",
     signedUrlExpiresSeconds: Number(process.env.STORAGE_SIGNED_URL_EXPIRES_SECONDS ?? 300)
   }
 };

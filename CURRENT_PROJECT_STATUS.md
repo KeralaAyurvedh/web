@@ -333,7 +333,7 @@ Completed:
 
 - Storage abstraction.
 - Local storage for development.
-- S3-compatible storage support for production.
+- Cloudflare R2 storage support for production.
 - Product images public.
 - Payment proofs private.
 - Signed URL support for private files.
@@ -342,7 +342,7 @@ Completed:
 
 Still left:
 
-- Configure real production S3-compatible bucket.
+- Configure real production Cloudflare R2 bucket.
 - Configure backup/retention policy.
 - Decide CDN/public image hosting setup.
 
@@ -657,7 +657,7 @@ Completed:
 - `/matrix` hides root manager details from Beta Manager.
 - Non-admin payment handover receiver is backend-selected.
 - Payment proof files are private.
-- Storage/S3 secrets are backend-only.
+- Storage/R2 secrets are backend-only.
 - SMTP password is backend-only.
 - `.env` should not be committed.
 
@@ -793,7 +793,7 @@ Before production:
 
 - Never commit `.env`.
 - Never place SMTP password in mobile app.
-- Never place S3/storage secret keys in mobile app.
+- Never place R2/storage secret keys in mobile app.
 - Change `JWT_SECRET`.
 - Configure production CORS allowlist.
 - Configure real database backups.

@@ -17,6 +17,7 @@ type UploadInput = {
 };
 
 const publicCategories = new Set<FileAssetCategory>([FileAssetCategory.PRODUCT_IMAGE]);
+const r2SigningService = "s3"; // Cloudflare R2 uses the S3-compatible AWS Signature V4 service name.
 
 function extensionFromMime(mimeType: string) {
   if (mimeType === "image/png") return ".png";
@@ -49,66 +50,66 @@ function encodeRfc3986(value: string) {
   return encodeURIComponent(value).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 
-function s3Host() {
-  if (!config.storage.bucket) throw new Error("STORAGE_BUCKET is required for s3 storage");
+function r2Host() {
+  if (!config.storage.bucket) throw new Error("R2_BUCKET is required for R2 storage");
   if (config.storage.endpoint) {
     const endpoint = new URL(config.storage.endpoint);
     return config.storage.forcePathStyle
       ? endpoint.host
       : `${config.storage.bucket}.${endpoint.host}`;
   }
-  return `${config.storage.bucket}.s3.${config.storage.region}.amazonaws.com`;
+  throw new Error("R2_ENDPOINT is required for R2 storage");
 }
 
-function s3Path(key: string) {
-  if (!config.storage.bucket) throw new Error("STORAGE_BUCKET is required for s3 storage");
+function r2Path(key: string) {
+  if (!config.storage.bucket) throw new Error("R2_BUCKET is required for R2 storage");
   if (!config.storage.endpoint || !config.storage.forcePathStyle) return `/${key.split("/").map(encodeRfc3986).join("/")}`;
   return `/${config.storage.bucket}/${key.split("/").map(encodeRfc3986).join("/")}`;
 }
 
-function s3Url(key: string) {
+function r2Url(key: string) {
   const protocol = config.storage.endpoint ? new URL(config.storage.endpoint).protocol : "https:";
-  return `${protocol}//${s3Host()}${s3Path(key)}`;
+  return `${protocol}//${r2Host()}${r2Path(key)}`;
 }
 
-function s3SigningKey(date: string) {
-  if (!config.storage.secretAccessKey) throw new Error("STORAGE_SECRET_ACCESS_KEY is required for s3 storage");
+function r2SigningKey(date: string) {
+  if (!config.storage.secretAccessKey) throw new Error("R2_SECRET_ACCESS_KEY is required for R2 storage");
   const kDate = hmac(`AWS4${config.storage.secretAccessKey}`, date);
   const kRegion = hmac(kDate, config.storage.region);
-  const kService = hmac(kRegion, "s3");
+  const kService = hmac(kRegion, r2SigningService);
   return hmac(kService, "aws4_request");
 }
 
-function assertS3Config() {
+function assertR2Config() {
   if (!config.storage.bucket || !config.storage.accessKeyId || !config.storage.secretAccessKey) {
-    throw new Error("S3 storage is not fully configured");
+    throw new Error("R2 storage is not fully configured");
   }
 }
 
-function s3Authorization(method: "PUT", key: string, mimeType: string, payload: Buffer) {
-  assertS3Config();
+function r2Authorization(method: "PUT", key: string, mimeType: string, payload: Buffer) {
+  assertR2Config();
   const now = new Date();
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
   const date = amzDate.slice(0, 8);
-  const host = s3Host();
+  const host = r2Host();
   const canonicalHeaders = `content-type:${mimeType}\nhost:${host}\nx-amz-content-sha256:${sha256Hex(payload)}\nx-amz-date:${amzDate}\n`;
   const signedHeaders = "content-type;host;x-amz-content-sha256;x-amz-date";
   const canonicalRequest = [
     method,
-    s3Path(key),
+    r2Path(key),
     "",
     canonicalHeaders,
     signedHeaders,
     sha256Hex(payload)
   ].join("\n");
-  const credentialScope = `${date}/${config.storage.region}/s3/aws4_request`;
+  const credentialScope = `${date}/${config.storage.region}/${r2SigningService}/aws4_request`;
   const stringToSign = [
     "AWS4-HMAC-SHA256",
     amzDate,
     credentialScope,
     sha256Hex(canonicalRequest)
   ].join("\n");
-  const signature = hmacHex(s3SigningKey(date), stringToSign);
+  const signature = hmacHex(r2SigningKey(date), stringToSign);
 
   return {
     host,
@@ -118,13 +119,13 @@ function s3Authorization(method: "PUT", key: string, mimeType: string, payload: 
   };
 }
 
-function presignedS3Url(key: string, expiresSeconds: number) {
-  assertS3Config();
+function presignedR2Url(key: string, expiresSeconds: number) {
+  assertR2Config();
   const now = new Date();
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
   const date = amzDate.slice(0, 8);
-  const host = s3Host();
-  const credentialScope = `${date}/${config.storage.region}/s3/aws4_request`;
+  const host = r2Host();
+  const credentialScope = `${date}/${config.storage.region}/${r2SigningService}/aws4_request`;
   const query = new URLSearchParams({
     "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
     "X-Amz-Credential": `${config.storage.accessKeyId}/${credentialScope}`,
@@ -138,7 +139,7 @@ function presignedS3Url(key: string, expiresSeconds: number) {
     .join("&");
   const canonicalRequest = [
     "GET",
-    s3Path(key),
+    r2Path(key),
     canonicalQuery,
     `host:${host}\n`,
     "host",
@@ -150,8 +151,8 @@ function presignedS3Url(key: string, expiresSeconds: number) {
     credentialScope,
     sha256Hex(canonicalRequest)
   ].join("\n");
-  query.set("X-Amz-Signature", hmacHex(s3SigningKey(date), stringToSign));
-  return `${s3Url(key)}?${query.toString()}`;
+  query.set("X-Amz-Signature", hmacHex(r2SigningKey(date), stringToSign));
+  return `${r2Url(key)}?${query.toString()}`;
 }
 
 function localSignedUrl(fileId: string, expiresSeconds: number) {
@@ -180,11 +181,11 @@ export async function uploadFile(input: UploadInput) {
   let provider: FileAssetStorageProvider = FileAssetStorageProvider.LOCAL;
   let bucket: string | undefined;
 
-  if (config.storage.provider === "s3") {
-    provider = FileAssetStorageProvider.S3;
+  if (config.storage.provider === "r2") {
+    provider = FileAssetStorageProvider.R2;
     bucket = config.storage.bucket;
-    const auth = s3Authorization("PUT", key, input.mimeType, input.buffer);
-    const response = await fetch(s3Url(key), {
+    const auth = r2Authorization("PUT", key, input.mimeType, input.buffer);
+    const response = await fetch(r2Url(key), {
       method: "PUT",
       headers: {
         Authorization: auth.authorization,
@@ -195,13 +196,13 @@ export async function uploadFile(input: UploadInput) {
       body: input.buffer as unknown as BodyInit
     });
     if (!response.ok) {
-      throw new Error(`S3 upload failed with status ${response.status}`);
+      throw new Error(`R2 upload failed with status ${response.status}`);
     }
     publicUrl = isPrivate
       ? undefined
       : config.storage.publicBaseUrl
         ? `${config.storage.publicBaseUrl.replace(/\/$/, "")}/${key}`
-        : s3Url(key);
+        : r2Url(key);
   } else {
     const root = isPrivate ? config.storage.localPrivateUploadDir : config.storage.localUploadDir;
     const relativeKey = key.replace(/^private\//, "").replace(/^public\//, "");
@@ -238,8 +239,8 @@ export async function getSignedViewUrl(fileId: string) {
 
   const expiresSeconds = config.storage.signedUrlExpiresSeconds;
   const expiresAt = new Date(Date.now() + expiresSeconds * 1000).toISOString();
-  const url = file.storageProvider === FileAssetStorageProvider.S3
-    ? presignedS3Url(file.key, expiresSeconds)
+  const url = file.storageProvider === FileAssetStorageProvider.R2
+    ? presignedR2Url(file.key, expiresSeconds)
     : localSignedUrl(file.id, expiresSeconds);
 
   return { file, url, expiresAt };

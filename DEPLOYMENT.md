@@ -8,7 +8,7 @@ Use this when deploying the Kerala Ayurvedh backend to a production server.
 - Server access or hosting provider details.
 - Production PostgreSQL database URL.
 - SMTP credentials already configured in production `.env`.
-- S3-compatible storage credentials if production file storage is cloud-based.
+- Cloudflare R2 credentials if production file storage is cloud-based.
 
 ## Backend Environment
 
@@ -33,13 +33,13 @@ SMTP_PASS=""
 SMTP_FROM_EMAIL=""
 SMTP_FROM_NAME="Kerala Ayurvedh"
 STORAGE_PROVIDER="local"
-STORAGE_BUCKET=""
-STORAGE_REGION="us-east-1"
-STORAGE_ENDPOINT=""
-STORAGE_ACCESS_KEY_ID=""
-STORAGE_SECRET_ACCESS_KEY=""
-STORAGE_PUBLIC_BASE_URL=""
-STORAGE_FORCE_PATH_STYLE=false
+R2_BUCKET=""
+R2_REGION="auto"
+R2_ENDPOINT=""
+R2_ACCESS_KEY_ID=""
+R2_SECRET_ACCESS_KEY=""
+R2_PUBLIC_BASE_URL=""
+R2_FORCE_PATH_STYLE=false
 STORAGE_SIGNED_URL_EXPIRES_SECONDS=300
 ```
 
