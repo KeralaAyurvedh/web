@@ -8,7 +8,7 @@ Use this when deploying the Kerala Ayurvedh backend to a production server.
 - Server access or hosting provider details.
 - Production PostgreSQL database URL.
 - SMTP credentials already configured in production `.env`.
-- Cloudflare R2 credentials if production file storage is cloud-based.
+- Cloudflare R2 or another object storage provider if production file storage is cloud-based.
 
 ## Backend Environment
 
@@ -70,6 +70,25 @@ Build command: npm install && npx prisma generate && npm run build
 Start command: npm run start:deploy
 Health check path: /health
 ```
+
+For Vercel Hobby/no-card deployment:
+
+```bash
+Root directory: backend
+Build command: npm run vercel-build
+Output directory: leave blank
+```
+
+Use temporary local upload paths on Vercel:
+
+```env
+STORAGE_PROVIDER="local"
+LOCAL_UPLOAD_DIR="/tmp/public"
+LOCAL_PRIVATE_UPLOAD_DIR="/tmp/private-uploads"
+BACKUP_DIR="/tmp/backups"
+```
+
+This lets the API run without R2, but uploaded receipts, generated APK files, and backup zip files are not permanent on serverless storage.
 
 ## Backups
 

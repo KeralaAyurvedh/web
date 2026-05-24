@@ -7,7 +7,7 @@ This file tracks the remaining tasks that require real business or hosting detai
 - Production domain name, for example `keralaayurvedh.com`.
 - Backend hosting provider and server access.
 - Production PostgreSQL database URL.
-- Cloudflare R2 bucket, endpoint, access key, and secret key.
+- Cloudflare R2 or another permanent object storage provider for reliable uploaded files.
 - Brevo/SMTP username, password, sender email, and verified sender domain.
 - Official support email address. The app uses email-only support communication.
 - Approved privacy policy and consent text for Aadhaar/PAN number collection.
@@ -30,16 +30,14 @@ SMTP_PASS="real-smtp-password"
 SMTP_FROM_EMAIL="verified-sender@your-domain.com"
 SMTP_FROM_NAME="Kerala Ayurvedh"
 SUPPORT_EMAIL="support@your-domain.com"
-STORAGE_PROVIDER="r2"
-R2_BUCKET="real-bucket-name"
-R2_REGION="auto"
-R2_ENDPOINT="https://account-id.r2.cloudflarestorage.com"
-R2_ACCESS_KEY_ID="real-access-key"
-R2_SECRET_ACCESS_KEY="real-secret-key"
-R2_PUBLIC_BASE_URL="https://public-r2-domain-or-custom-domain"
-R2_FORCE_PATH_STYLE=true
+STORAGE_PROVIDER="local"
+LOCAL_UPLOAD_DIR="/tmp/public"
+LOCAL_PRIVATE_UPLOAD_DIR="/tmp/private-uploads"
+BACKUP_DIR="/tmp/backups"
 STORAGE_SIGNED_URL_EXPIRES_SECONDS=300
 ```
+
+The no-card/free deployment can use temporary local storage to start testing. Before real production use, configure permanent object storage so payment receipts, private files, backups, and APK downloads do not disappear after a redeploy or serverless restart.
 
 ## Website Environment
 

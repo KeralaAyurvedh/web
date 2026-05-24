@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
     "build": "tsc",
+    "vercel-build": "prisma migrate deploy && prisma generate && npm run build && node dist/seed.js",
     "start": "node dist/index.js",
     "start:deploy": "prisma migrate deploy && node dist/seed.js && node dist/index.js",
     "prisma:generate": "prisma generate",
