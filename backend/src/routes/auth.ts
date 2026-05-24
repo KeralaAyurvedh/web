@@ -8,6 +8,7 @@ import { requireAuth } from "../middlewares/auth";
 import { rateLimit } from "../middlewares/rateLimit";
 import { clearFailedLogins, getLoginBlockMessage, recordFailedLogin } from "../utils/loginSecurity";
 import { sendForgotPasswordOtpEmail } from "../utils/email";
+import { writeAuditLog } from "../utils/audit";
 
 
 export const authRouter = Router();
@@ -25,6 +26,11 @@ const strongPassword = z.string()
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(6),
   newPassword: strongPassword
+});
+
+const changeLoginIdSchema = z.object({
+  currentPassword: z.string().min(6),
+  newPhone: z.string().min(6).max(20).regex(/^[0-9+\-\s]+$/, "Login phone can contain only numbers, spaces, +, and -")
 });
 
 const forgotPasswordSchema = z.object({
@@ -116,6 +122,56 @@ authRouter.post("/change-password", requireAuth, rateLimit({ keyPrefix: "change-
   });
 
   return res.json({ ok: true });
+});
+
+authRouter.patch("/change-login-id", requireAuth, rateLimit({ keyPrefix: "change-login-id", windowMs: 15 * 60 * 1000, max: 10 }), async (req, res) => {
+  const parsed = changeLoginIdSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid login ID details", details: parsed.error.flatten() });
+  }
+
+  if (req.user!.role !== "ADMIN") {
+    return res.status(403).json({ error: "Only Admin can change the login ID" });
+  }
+
+  const normalizedPhone = parsed.data.newPhone.replace(/\s+/g, "");
+  const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+  if (!user) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  const ok = await bcrypt.compare(parsed.data.currentPassword, user.passwordHash);
+  if (!ok) {
+    return res.status(401).json({ error: "Current password is incorrect" });
+  }
+
+  const existing = await prisma.user.findUnique({ where: { phone: normalizedPhone } });
+  if (existing && existing.id !== user.id) {
+    return res.status(409).json({ error: "This login ID is already used by another account" });
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: { phone: normalizedPhone },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      role: true,
+      status: true,
+      referralCode: true
+    }
+  });
+
+  await writeAuditLog({
+    actorId: user.id,
+    action: "ADMIN_LOGIN_ID_CHANGED",
+    entityType: "User",
+    entityId: user.id,
+    metadata: { previousPhone: user.phone, newPhone: updated.phone }
+  });
+
+  return res.json({ ok: true, user: updated });
 });
 
 authRouter.post("/forgot-password", rateLimit({ keyPrefix: "forgot-password", windowMs: 15 * 60 * 1000, max: 5 }), async (req, res) => {
@@ -243,4 +299,3 @@ authRouter.get("/resolve-referral/:code", rateLimit({ keyPrefix: "resolve-referr
     determinedRole
   });
 });
-

@@ -19,9 +19,17 @@ function validateStrongPassword(password: string) {
   return "";
 }
 
-export function SecurityScreen({ session }: { session: Session }) {
+export function SecurityScreen({
+  session,
+  onSessionUpdate
+}: {
+  session: Session;
+  onSessionUpdate?: (session: Session) => void;
+}) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [loginIdPassword, setLoginIdPassword] = useState("");
+  const [newLoginId, setNewLoginId] = useState(session.user.phone);
   const [loading, setLoading] = useState(false);
 
   async function changePassword() {
@@ -47,6 +55,35 @@ export function SecurityScreen({ session }: { session: Session }) {
       Alert.alert("Password changed", "Use the new password next time you login.");
     } catch (error) {
       Alert.alert("Password", error instanceof Error ? error.message : "Could not change password");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function changeLoginId() {
+    if (session.user.role !== "ADMIN") {
+      Alert.alert("Login ID", "Only Admin can change the login ID.");
+      return;
+    }
+    if (!loginIdPassword || !newLoginId.trim()) {
+      Alert.alert("Login ID", "Enter current password and the new login phone number.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const result = await apiRequest<{ ok: boolean; user: Session["user"] }>("/auth/change-login-id", {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${session.token}` },
+        body: JSON.stringify({ currentPassword: loginIdPassword, newPhone: newLoginId })
+      });
+      const updatedSession = { ...session, user: { ...session.user, phone: result.user.phone } };
+      onSessionUpdate?.(updatedSession);
+      setLoginIdPassword("");
+      setNewLoginId(result.user.phone);
+      Alert.alert("Login ID changed", "Use the new phone number the next time you login.");
+    } catch (error) {
+      Alert.alert("Login ID", error instanceof Error ? error.message : "Could not change login ID");
     } finally {
       setLoading(false);
     }
@@ -84,6 +121,37 @@ export function SecurityScreen({ session }: { session: Session }) {
           loading={loading}
         />
       </View>
+      {session.user.role === "ADMIN" ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Change admin login ID</Text>
+          <Text style={styles.mutedText}>
+            Only Admin can change the login phone number. This is the phone number used on the login screen.
+          </Text>
+          <Input
+            label="Current password"
+            value={loginIdPassword}
+            onChangeText={setLoginIdPassword}
+            secureTextEntry
+          />
+          <Input
+            label="New login phone"
+            value={newLoginId}
+            onChangeText={setNewLoginId}
+            keyboardType="phone-pad"
+          />
+          <PrimaryButton
+            label="Change login ID"
+            onPress={() =>
+              confirmAction(
+                "Change admin login ID",
+                "After this, use the new phone number for future admin logins.",
+                changeLoginId
+              )
+            }
+            loading={loading}
+          />
+        </View>
+      ) : null}
     </ScrollView>
   );
 }

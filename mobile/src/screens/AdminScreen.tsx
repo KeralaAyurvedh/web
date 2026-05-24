@@ -83,7 +83,13 @@ function validateStrongPassword(password: string) {
   return "";
 }
 
-export function AdminScreen({ session }: { session: Session }) {
+export function AdminScreen({
+  session,
+  onSessionUpdate
+}: {
+  session: Session;
+  onSessionUpdate?: (session: Session) => void;
+}) {
   const [adminSection, setAdminSection] = useState<AdminSection>("overview");
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -132,6 +138,8 @@ export function AdminScreen({ session }: { session: Session }) {
   const [reassignSponsorId, setReassignSponsorId] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [loginIdPassword, setLoginIdPassword] = useState("");
+  const [newLoginId, setNewLoginId] = useState(session.user.phone);
   const [selectedUserNewPassword, setSelectedUserNewPassword] = useState("Welcome@123");
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -633,6 +641,35 @@ export function AdminScreen({ session }: { session: Session }) {
 
   function requestPasswordChange() {
     confirmAction("Change password", "After this, use the new password for future logins.", changePassword);
+  }
+
+  async function changeLoginId() {
+    if (!loginIdPassword || !newLoginId.trim()) {
+      Alert.alert("Login ID", "Enter current password and the new login phone number.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const result = await apiRequest<{ ok: boolean; user: User }>("/auth/change-login-id", {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${session.token}` },
+        body: JSON.stringify({ currentPassword: loginIdPassword, newPhone: newLoginId })
+      });
+      const updatedSession = { ...session, user: { ...session.user, phone: result.user.phone } };
+      onSessionUpdate?.(updatedSession);
+      setLoginIdPassword("");
+      setNewLoginId(result.user.phone);
+      Alert.alert("Login ID changed", "Use the new phone number the next time you login.");
+    } catch (error) {
+      Alert.alert("Login ID", error instanceof Error ? error.message : "Could not change login ID");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function requestLoginIdChange() {
+    confirmAction("Change admin login ID", "After this, use the new phone number for future admin logins.", changeLoginId);
   }
 
   async function approveApplication(applicationId: string) {
@@ -1247,6 +1284,11 @@ export function AdminScreen({ session }: { session: Session }) {
       {adminSection === "security" ? (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Security</Text>
+          <Text style={styles.mutedText}>Only Admin can change the admin login ID and password from this section.</Text>
+          <Input label="Current password for login ID" value={loginIdPassword} onChangeText={setLoginIdPassword} secureTextEntry />
+          <Input label="New admin login phone" value={newLoginId} onChangeText={setNewLoginId} keyboardType="phone-pad" />
+          <PrimaryButton label="Change login ID" onPress={requestLoginIdChange} loading={loading} />
+          <View style={styles.spacer} />
           <Input label="Current password" value={currentPassword} onChangeText={setCurrentPassword} secureTextEntry />
           <Input label="New password" value={newPassword} onChangeText={setNewPassword} secureTextEntry />
           <PrimaryButton label="Change password" onPress={requestPasswordChange} loading={loading} />

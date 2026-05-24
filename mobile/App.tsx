@@ -323,12 +323,12 @@ export default function App() {
             }}
           />
         )}
-        {activeTab === "admin" && <AdminScreen session={session} />}
+        {activeTab === "admin" && <AdminScreen session={session} onSessionUpdate={setSession} />}
         {activeTab === "tree" && <MlmTreeScreen session={session} />}
         {activeTab === "commissions" && <CommissionsScreen session={session} />}
         {activeTab === "payments" && <PaymentsScreen session={session} />}
         {activeTab === "profile" && <ProfileScreen session={session} />}
-        {activeTab === "security" && <SecurityScreen session={session} />}
+        {activeTab === "security" && <SecurityScreen session={session} onSessionUpdate={setSession} />}
         {activeTab === "help" && (
           <HelpScreen session={session} onNavigate={navigate} onShowGuide={openGuideAgain} />
         )}

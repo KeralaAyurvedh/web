@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Role, PlacementType, UserStatus, BetaMatrixStatus, CommissionType, CommissionStatus } from "@prisma/client";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 import type { AddressInfo } from "net";
 import type { Server } from "http";
 import { createApp } from "../app";
@@ -552,6 +553,46 @@ describe("MLM & Commission Business Rules Integration Tests", () => {
 
       expect(createUser.status).toBe(403);
       expect(listUsers.status).toBe(403);
+    });
+
+    it("should allow only Admin to change their own login phone", async () => {
+      const adminPassword = "AdminChange1!";
+      const admin = await prisma.user.create({
+        data: {
+          name: "HTTP Login Admin",
+          phone: "9920000101",
+          passwordHash: await bcrypt.hash(adminPassword, 12),
+          role: Role.ADMIN,
+          referralCode: "HPADMN01"
+        }
+      });
+      const manager = await prisma.user.create({
+        data: {
+          name: "HTTP Login Manager",
+          phone: "9920000102",
+          passwordHash: await bcrypt.hash(adminPassword, 12),
+          role: Role.MANAGER,
+          referralCode: "HPMAN02"
+        }
+      });
+
+      const blocked = await apiRequest("/auth/change-login-id", {
+        method: "PATCH",
+        token: authToken(manager.id, Role.MANAGER),
+        body: { currentPassword: adminPassword, newPhone: "9920000103" }
+      });
+      const changed = await apiRequest("/auth/change-login-id", {
+        method: "PATCH",
+        token: authToken(admin.id, Role.ADMIN),
+        body: { currentPassword: adminPassword, newPhone: "9920000104" }
+      });
+
+      expect(blocked.status).toBe(403);
+      expect(changed.status).toBe(200);
+      expect(changed.data.user.phone).toBe("9920000104");
+
+      const updatedAdmin = await prisma.user.findUniqueOrThrow({ where: { id: admin.id } });
+      expect(updatedAdmin.phone).toBe("9920000104");
     });
 
     it("should scope non-admin order and handover visibility to related records", async () => {

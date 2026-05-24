@@ -23,7 +23,7 @@ export function MoreScreen({
     { key: "payments", title: "Payments", description: "Record and track money handovers", icon: "P" },
     { key: "help", title: "Help", description: "Learn what to do step by step", icon: "H" },
     { key: "profile", title: "Profile", description: "View your account, role and referral details", icon: "U" },
-    { key: "security", title: "Security", description: "Change your login password", icon: "S" },
+    { key: "security", title: "Security", description: session.user.role === "ADMIN" ? "Change admin login ID and password" : "Change your login password", icon: "S" },
     { key: "logout", title: "Logout", description: "Sign out from this device", icon: "X", danger: true }
   ];
   
