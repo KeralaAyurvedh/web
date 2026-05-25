@@ -17,6 +17,7 @@ Create `backend/.env` on the production server:
 ```env
 NODE_ENV="production"
 DATABASE_URL="postgresql://..."
+DIRECT_URL="postgresql://..."
 JWT_SECRET="replace-with-a-long-random-secret-at-least-32-characters"
 PORT=4000
 CORS_ORIGIN="https://your-domain.com,https://www.your-domain.com"
@@ -42,6 +43,10 @@ R2_PUBLIC_BASE_URL=""
 R2_FORCE_PATH_STYLE=false
 STORAGE_SIGNED_URL_EXPIRES_SECONDS=300
 ```
+
+For Supabase, use the transaction pooler URL for `DATABASE_URL` and the session
+pooler or direct URL for `DIRECT_URL`. Prisma migrations use `DIRECT_URL`; the
+running backend uses `DATABASE_URL`.
 
 For Railway/Render persistent volumes, set upload paths to the mounted volume:
 
