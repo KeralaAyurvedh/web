@@ -80,6 +80,9 @@ Health check path: /health
 Run `npm run seed:deploy` manually after the first successful production deploy, with
 `SEED_ADMIN_PASSWORD` set when creating the initial admin user.
 
+If the hosting provider shell is unavailable, set `RUN_SEED_ON_STARTUP=true`,
+redeploy once, then set it back to `false` after the seed completes.
+
 For Vercel Hobby/no-card deployment:
 
 ```bash

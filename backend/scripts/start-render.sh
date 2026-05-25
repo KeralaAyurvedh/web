@@ -9,4 +9,9 @@ else
   npx prisma migrate deploy
 fi
 
+if [ "${RUN_SEED_ON_STARTUP:-false}" = "true" ]; then
+  echo "RUN_SEED_ON_STARTUP=true. Running production seed."
+  node dist/seed.js
+fi
+
 exec node dist/index.js
