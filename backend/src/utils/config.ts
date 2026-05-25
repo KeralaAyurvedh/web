@@ -21,7 +21,7 @@ if (nodeEnv === "production" && jwtSecret.length < 32) {
 
 export const config = {
   nodeEnv,
-  port: Number(process.env.PORT ?? 4000),
+  port: Number(process.env.PORT) || 4000,
   jwtSecret,
   corsOrigins,
   jsonBodyLimit: process.env.JSON_BODY_LIMIT ?? "1mb",

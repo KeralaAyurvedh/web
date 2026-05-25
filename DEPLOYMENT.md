@@ -58,6 +58,7 @@ cd backend
 npm install
 npx prisma generate
 npm run build
+npm run seed:deploy
 npm run start:deploy
 ```
 
@@ -70,6 +71,9 @@ Build command: npm install && npx prisma generate && npm run build
 Start command: npm run start:deploy
 Health check path: /health
 ```
+
+Run `npm run seed:deploy` manually after the first successful production deploy, with
+`SEED_ADMIN_PASSWORD` set when creating the initial admin user.
 
 For Vercel Hobby/no-card deployment:
 

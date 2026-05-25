@@ -3,8 +3,9 @@ import { prisma } from "./utils/prisma";
 import { createApp } from "./app";
 
 const app = createApp();
-const server = app.listen(config.port, "0.0.0.0", () => {
-  console.log(`Kerala Ayurvedh backend running on http://0.0.0.0:${config.port}`);
+const port = Number(process.env.PORT) || config.port || 4000;
+const server = app.listen(port, "0.0.0.0", () => {
+  console.log(`Kerala Ayurvedh backend running on http://0.0.0.0:${port}`);
 });
 
 async function shutdown(signal: string) {
