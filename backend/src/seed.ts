@@ -1,11 +1,14 @@
 import bcrypt from "bcryptjs";
-import { Role, HelpTopicRole, HelpTopicCategory } from "@prisma/client";
+import { Role, HelpTopicRole, HelpTopicCategory, type Prisma } from "@prisma/client";
 import { prisma } from "./utils/prisma";
 
 async function main() {
   const phone = process.env.SEED_ADMIN_PHONE ?? "9999999999";
+  const adminReferralCode = process.env.SEED_ADMIN_REFERRAL_CODE ?? "ADMIN000001";
   const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD;
-  const existingAdmin = await prisma.user.findUnique({ where: { phone } });
+  const existingAdminByPhone = await prisma.user.findUnique({ where: { phone } });
+  const existingAdminByReferralCode = await prisma.user.findUnique({ where: { referralCode: adminReferralCode } });
+  const existingAdmin = existingAdminByPhone ?? existingAdminByReferralCode;
 
   if (process.env.NODE_ENV === "production" && !existingAdmin && !seedAdminPassword) {
     throw new Error("SEED_ADMIN_PASSWORD is required for first production seed");
@@ -13,23 +16,46 @@ async function main() {
 
   const password = seedAdminPassword ?? "Admin@12345";
   const passwordHash = seedAdminPassword || !existingAdmin ? await bcrypt.hash(password, 12) : undefined;
-  const createPasswordHash = passwordHash ?? await bcrypt.hash(password, 12);
 
-  const admin = await prisma.user.upsert({
-    where: { phone },
-    update: {
+  let admin;
+  if (existingAdmin) {
+    const adminUpdate: Prisma.UserUpdateInput = {
+      name: existingAdmin.name || "Company Admin",
       ...(passwordHash ? { passwordHash } : {}),
       status: "ACTIVE",
       role: Role.ADMIN
-    },
-    create: {
-      name: "Company Admin",
-      phone,
-      passwordHash: createPasswordHash,
-      role: Role.ADMIN,
-      referralCode: "ADMIN000001"
+    };
+
+    if (!existingAdminByPhone || existingAdminByPhone.id === existingAdmin.id) {
+      adminUpdate.phone = phone;
     }
-  });
+
+    if (!existingAdminByReferralCode || existingAdminByReferralCode.id === existingAdmin.id) {
+      adminUpdate.referralCode = adminReferralCode;
+    }
+
+    admin = await prisma.user.update({
+      where: { id: existingAdmin.id },
+      data: adminUpdate
+    });
+  } else {
+    admin = await prisma.user.create({
+      data: {
+        name: "Company Admin",
+        phone,
+        passwordHash: passwordHash ?? await bcrypt.hash(password, 12),
+        role: Role.ADMIN,
+        referralCode: adminReferralCode
+      }
+    });
+  }
+
+  if (existingAdminByPhone && existingAdminByReferralCode && existingAdminByPhone.id !== existingAdminByReferralCode.id) {
+    console.warn(
+      `Seed admin phone ${phone} and referral code ${adminReferralCode} belong to different users. ` +
+      `Updated phone owner ${existingAdminByPhone.id} and left referral code owner unchanged.`
+    );
+  }
 
   console.log("Seed admin ready:");
   console.log({
