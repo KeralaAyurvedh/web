@@ -7,3 +7,14 @@ backend/backups/
 backend/public/*.apk
 backend/public/private-uploads/
 mobile/dist-*/
+
+# IDEs and system files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db

@@ -7,6 +7,7 @@ import { assertCanAddDownline, assertCanCreateBetaManager, getBetaManagerEligibi
 import { createCommissionsAfterPaymentConfirmation } from "../services/commissionRules";
 import { prisma } from "../utils/prisma";
 import { writeAuditLog } from "../utils/audit";
+import { sendLoginCredentialsEmail } from "../utils/email";
 
 export const usersRouter = Router();
 
@@ -164,6 +165,16 @@ usersRouter.post("/", requireAuth, async (req, res) => {
     }
   });
 
+  const emailResult = created.email
+    ? await sendLoginCredentialsEmail({
+        to: created.email,
+        name: created.name,
+        phone: created.phone,
+        password: input.password,
+        role: created.role
+      })
+    : { sent: false, reason: "User email is missing" };
+
   return res.status(201).json({
     user: {
       id: created.id,
@@ -172,7 +183,9 @@ usersRouter.post("/", requireAuth, async (req, res) => {
       role: created.role,
       status: created.status,
       referralCode: created.referralCode
-    }
+    },
+    emailSent: emailResult.sent,
+    emailReason: emailResult.sent ? undefined : emailResult.reason
   });
 });
 

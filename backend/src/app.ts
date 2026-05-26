@@ -51,9 +51,12 @@ export function createApp() {
     res.status(404).json({ error: "Route not found" });
   });
 
-  app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
     const message = error instanceof Error ? error.message : "Internal server error";
-    if (config.nodeEnv !== "production") {
+    console.error("Unhandled API Error:", error);
+
+    // If the logged in user is Admin, or not in production, return the real error message for diagnosis
+    if (config.nodeEnv !== "production" || (req as any).user?.role === "ADMIN") {
       return res.status(500).json({ error: message });
     }
     return res.status(500).json({ error: "Internal server error" });
