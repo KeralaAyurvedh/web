@@ -3,10 +3,13 @@ import { CountAmountRow, AdminReport } from "../constants/types";
 
 declare const process: { env?: { EXPO_PUBLIC_API_URL?: string } } | undefined;
 
-export const API_URL =
+const defaultApiUrl = "https://web-laqb.onrender.com";
+
+export const API_URL = (
   typeof process !== "undefined" && process.env?.EXPO_PUBLIC_API_URL
     ? process.env.EXPO_PUBLIC_API_URL
-    : "https://api.keralaayurvedh.com";
+    : defaultApiUrl
+).replace(/\/+$/, "");
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}) {
   const response = await fetch(`${API_URL}${path}`, {

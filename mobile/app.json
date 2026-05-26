@@ -5,6 +5,9 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "jsEngine": "hermes",
+    "newArchEnabled": false,
+    "icon": "./assets/logo.png",
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -13,8 +16,15 @@
     },
     "android": {
       "package": "com.keralaayurvedh.app",
+      "versionCode": 3,
       "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#0a3314"
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "0aa153d7-255d-440b-8945-cc87807fe859"
       }
     }
   }
