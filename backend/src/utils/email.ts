@@ -140,6 +140,7 @@ async function sendSmtpMail(to: string, subject: string, text: string) {
     await sendCommand(socket, "QUIT", [221]);
     return { sent: true };
   } catch (error) {
+    console.error("SMTP Mail Send Failed:", error);
     return {
       sent: false,
       reason: error instanceof Error ? error.message : "Email send failed"
