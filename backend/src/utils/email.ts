@@ -97,18 +97,35 @@ async function startTls(socket: net.Socket) {
   });
 }
 
-async function sendSmtpMail(to: string, subject: string, text: string) {
+async function sendSmtpMail(to: string, subject: string, text: string): Promise<{ sent: boolean; reason?: string }> {
   if (!smtpConfigured()) {
     return { sent: false, reason: "SMTP is not configured" };
   }
 
   let socket: SmtpSocket | null = null;
+  let timeoutId: NodeJS.Timeout | null = null;
 
-  try {
+  // Create a timeout promise to reject after 10 seconds
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error("SMTP connection timed out after 10 seconds"));
+    }, 10000);
+  });
+
+  const mailPromise = (async () => {
     socket = await connectSmtp();
+    socket.setTimeout(8000);
+    socket.on("timeout", () => {
+      (socket as any)?.destroy();
+    });
+
     await readResponse(socket);
     if (!config.smtp.secure) {
       socket = await startTls(socket as net.Socket);
+      socket.setTimeout(8000);
+      socket.on("timeout", () => {
+        (socket as any)?.destroy();
+      });
     }
     await sendCommand(socket, `EHLO ${config.smtp.fromEmail}`, [250]);
     await sendCommand(socket, "AUTH LOGIN", [334]);
@@ -139,6 +156,11 @@ async function sendSmtpMail(to: string, subject: string, text: string) {
 
     await sendCommand(socket, "QUIT", [221]);
     return { sent: true };
+  })();
+
+  try {
+    const result = await Promise.race([mailPromise, timeoutPromise]);
+    return result;
   } catch (error) {
     console.error("SMTP Mail Send Failed:", error);
     return {
@@ -146,7 +168,10 @@ async function sendSmtpMail(to: string, subject: string, text: string) {
       reason: error instanceof Error ? error.message : "Email send failed"
     };
   } finally {
-    socket?.destroy();
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    (socket as any)?.destroy();
   }
 }
 
