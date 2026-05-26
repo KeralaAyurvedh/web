@@ -102,6 +102,45 @@ async function sendSmtpMail(to: string, subject: string, text: string): Promise<
     return { sent: false, reason: "SMTP is not configured" };
   }
 
+  // If the host is Brevo, use their HTTP API to bypass Render's firewall blocking port 587
+  if (config.smtp.host === "smtp-relay.brevo.com") {
+    try {
+      console.log("Attempting to send email via Brevo HTTP API to bypass Render port 587 block...");
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "accept": "application/json",
+          "api-key": config.smtp.pass!,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          sender: {
+            name: config.smtp.fromName,
+            email: config.smtp.fromEmail
+          },
+          to: [
+            {
+              email: to,
+              name: to.split("@")[0]
+            }
+          ],
+          subject: subject,
+          textContent: text
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.message || `HTTP error ${response.status}`);
+      }
+
+      console.log("Email successfully sent via Brevo HTTP API.");
+      return { sent: true };
+    } catch (error) {
+      console.error("Brevo HTTP API Mail Send Failed. Falling back to SMTP...", error);
+    }
+  }
+
   let socket: SmtpSocket | null = null;
   let timeoutId: NodeJS.Timeout | null = null;
 
