@@ -3,8 +3,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install
 COPY . .
-ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/prisma_generate"
-RUN npx prisma generate && npm run build
+RUN DATABASE_URL="postgresql://postgres:postgres@localhost:5432/prisma_generate" npx prisma generate && npm run build
 
 ENV NODE_ENV=production
 EXPOSE 4000
