@@ -723,6 +723,30 @@ export function AdminScreen({
     }
   }
 
+  async function resetTestData() {
+    try {
+      setLoading(true);
+      const result = await apiRequest<{ ok: boolean; message: string }>("/admin/system/reset-test-data", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.token}` }
+      });
+      await loadAdminPanel();
+      Alert.alert("Database Reset", result.message);
+    } catch (error) {
+      Alert.alert("Database Reset", error instanceof Error ? error.message : "Could not reset test data");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function requestTestDataReset() {
+    confirmAction(
+      "Reset Test Database?",
+      "WARNING: This will permanently delete ALL test users, network structures, orders, payments, applications, and commissions from the live database. Core products and help topics will be kept. Continue?",
+      resetTestData
+    );
+  }
+
   // Handle CSV exports dynamically and share file
   async function handleExportCsv(type: "orders" | "payments" | "commissions") {
     try {
@@ -742,7 +766,7 @@ export function AdminScreen({
 
       const filename = `${type}_export_${Date.now()}.csv`;
       const fileUri = ((FileSystem as any).documentDirectory ?? "") + filename;
-      await FileSystem.writeAsStringAsync(fileUri, csvText, { encoding: FileSystem.EncodingType.UTF8 });
+      await FileSystem.writeAsStringAsync(fileUri, csvText, { encoding: "utf8" });
 
       await Share.share({
         url: fileUri,
@@ -823,6 +847,22 @@ export function AdminScreen({
           <Text style={styles.mutedText}>
             Admin can see exact stock in Products. Other users only see Available, Out of Stock, or Coming Soon.
           </Text>
+        </View>
+      ) : null}
+
+      {adminSection === "overview" ? (
+        <View style={[styles.card, { borderLeftColor: colors.danger, borderLeftWidth: 4 }]}>
+          <Text style={styles.cardTitle}>Developer Database Tools</Text>
+          <Text style={styles.mutedText}>
+            Use this button to completely wipe all test users, network structures, orders, commissions, applications, and logs from the database, returning the system to a clean state.
+          </Text>
+          <View style={{ marginTop: 12 }}>
+            <PrimaryButton 
+              label="Reset Test Database" 
+              onPress={requestTestDataReset} 
+              loading={loading}
+            />
+          </View>
         </View>
       ) : null}
 
