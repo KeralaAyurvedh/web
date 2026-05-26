@@ -26,7 +26,7 @@ import { requireAuth, requireRoles } from "../middlewares/auth";
 import { prisma } from "../utils/prisma";
 import { config } from "../utils/config";
 import { writeAuditLog } from "../utils/audit";
-import { sendLoginCredentialsEmail } from "../utils/email";
+import { sendLoginCredentialsEmail, sendRoleUpgradeDecisionEmail } from "../utils/email";
 import { assertCanAddDownline, assertCanCreateBetaManager } from "../services/networkRules";
 import { getSignedViewUrl, uploadFile } from "../services/storage";
 
@@ -958,13 +958,23 @@ adminRouter.patch("/applications/:id/approve", async (req, res) => {
       })
     : { sent: false, reason: "Application email is missing" };
 
+  if (!emailResult.sent) {
+    console.warn("Application approval login email was not sent", {
+      applicationId: application.id,
+      userId: user.id,
+      recipient: application.email,
+      reason: emailResult.reason
+    });
+  }
+
   return res.json({
     user,
     credentials: {
       phone: user.phone,
       password: parsed.data.password,
       emailReady: emailResult.sent,
-      emailSent: emailResult.sent
+      emailSent: emailResult.sent,
+      emailReason: emailResult.sent ? undefined : emailResult.reason
     }
   });
 });
@@ -1746,7 +1756,10 @@ adminRouter.patch("/upgrade-requests/:id/decision", async (req, res) => {
     return res.status(400).json({ error: "Invalid decision", details: parsed.error.flatten() });
   }
 
-  const request = await prisma.roleUpgradeRequest.findUnique({ where: { id: String(req.params.id) } });
+  const request = await prisma.roleUpgradeRequest.findUnique({
+    where: { id: String(req.params.id) },
+    include: { requester: true }
+  });
   if (!request) {
     return res.status(404).json({ error: "Upgrade request not found" });
   }
@@ -1808,7 +1821,30 @@ adminRouter.patch("/upgrade-requests/:id/decision", async (req, res) => {
     metadata: { decision: parsed.data.decision }
   });
 
-  return res.json({ ok: true });
+  const emailResult = request.requester.email
+    ? await sendRoleUpgradeDecisionEmail({
+        to: request.requester.email,
+        name: request.requester.name,
+        fromRole: request.fromRole,
+        toRole: request.toRole,
+        decision: parsed.data.decision
+      })
+    : { sent: false, reason: "User email is missing" };
+
+  if (!emailResult.sent) {
+    console.warn("Role upgrade decision email was not sent", {
+      requestId: request.id,
+      requesterId: request.requesterId,
+      recipient: request.requester.email,
+      reason: emailResult.reason
+    });
+  }
+
+  return res.json({
+    ok: true,
+    emailSent: emailResult.sent,
+    emailReason: emailResult.sent ? undefined : emailResult.reason
+  });
 });
 
 adminRouter.get("/reassignment-requests", async (_req, res) => {

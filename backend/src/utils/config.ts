@@ -34,6 +34,7 @@ export const config = {
     secure: smtpSecure,
     user: process.env.SMTP_USER || undefined,
     pass: process.env.SMTP_PASS || undefined,
+    brevoApiKey: process.env.BREVO_API_KEY || undefined,
     fromEmail: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || undefined,
     fromName: process.env.SMTP_FROM_NAME || "Kerala Ayurvedh"
   },

@@ -12,8 +12,24 @@ type SendLoginEmailInput = {
   role: string;
 };
 
+type SendRoleUpgradeDecisionEmailInput = {
+  to: string;
+  name: string;
+  fromRole: string;
+  toRole: string;
+  decision: "APPROVED" | "REJECTED" | "CANCELLED";
+};
+
 function smtpConfigured() {
   return Boolean(config.smtp.host && config.smtp.user && config.smtp.pass && config.smtp.fromEmail);
+}
+
+function isBrevoHost() {
+  return config.smtp.host?.trim().toLowerCase() === "smtp-relay.brevo.com";
+}
+
+function brevoHttpConfigured() {
+  return Boolean(isBrevoHost() && (config.smtp.brevoApiKey || config.smtp.pass) && config.smtp.fromEmail);
 }
 
 function encodeBase64(value: string) {
@@ -98,19 +114,29 @@ async function startTls(socket: net.Socket) {
 }
 
 async function sendSmtpMail(to: string, subject: string, text: string): Promise<{ sent: boolean; reason?: string }> {
-  if (!smtpConfigured()) {
-    return { sent: false, reason: "SMTP is not configured" };
+  const canSendBrevoHttp = brevoHttpConfigured();
+  const canSendSmtp = smtpConfigured();
+
+  if (!canSendBrevoHttp && !canSendSmtp) {
+    return { sent: false, reason: "Email is not configured" };
   }
 
+  let brevoHttpFailureReason: string | undefined;
+
   // If the host is Brevo, use their HTTP API to bypass Render's firewall blocking port 587
-  if (config.smtp.host === "smtp-relay.brevo.com") {
+  if (canSendBrevoHttp) {
     try {
+      const apiKey = config.smtp.brevoApiKey ?? config.smtp.pass;
+      if (!apiKey) {
+        throw new Error("Brevo API key is not configured");
+      }
+
       console.log("Attempting to send email via Brevo HTTP API to bypass Render port 587 block...");
       const response = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
         headers: {
           "accept": "application/json",
-          "api-key": config.smtp.pass!,
+          "api-key": apiKey,
           "content-type": "application/json"
         },
         body: JSON.stringify({
@@ -130,15 +156,25 @@ async function sendSmtpMail(to: string, subject: string, text: string): Promise<
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch(() => undefined);
         throw new Error(errorData?.message || `HTTP error ${response.status}`);
       }
 
       console.log("Email successfully sent via Brevo HTTP API.");
       return { sent: true };
     } catch (error) {
+      brevoHttpFailureReason = error instanceof Error ? error.message : "Brevo HTTP API email send failed";
       console.error("Brevo HTTP API Mail Send Failed. Falling back to SMTP...", error);
     }
+  }
+
+  if (!canSendSmtp) {
+    return {
+      sent: false,
+      reason: brevoHttpFailureReason
+        ? `Brevo HTTP API failed: ${brevoHttpFailureReason}; SMTP fallback is not configured`
+        : "SMTP is not configured"
+    };
   }
 
   let socket: SmtpSocket | null = null;
@@ -202,9 +238,12 @@ async function sendSmtpMail(to: string, subject: string, text: string): Promise<
     return result;
   } catch (error) {
     console.error("SMTP Mail Send Failed:", error);
+    const smtpFailureReason = error instanceof Error ? error.message : "Email send failed";
     return {
       sent: false,
-      reason: error instanceof Error ? error.message : "Email send failed"
+      reason: brevoHttpFailureReason
+        ? `Brevo HTTP API failed: ${brevoHttpFailureReason}; SMTP fallback failed: ${smtpFailureReason}`
+        : smtpFailureReason
     };
   } finally {
     if (timeoutId) {
@@ -227,6 +266,32 @@ export async function sendLoginCredentialsEmail(input: SendLoginEmailInput) {
     "",
     "Open the Kerala Ayurvedh app and login with the above details.",
     "Please change your password after login from More > Security.",
+    config.supportEmail ? `Support: ${config.supportEmail}` : "",
+    "",
+    "Regards,",
+    "Kerala Ayurvedh"
+  ].join("\n");
+
+  return sendSmtpMail(input.to, subject, text);
+}
+
+export async function sendRoleUpgradeDecisionEmail(input: SendRoleUpgradeDecisionEmailInput) {
+  const approved = input.decision === "APPROVED";
+  const subject = `Kerala Ayurvedh role upgrade ${approved ? "approved" : "updated"}`;
+  const text = [
+    `Hello ${input.name},`,
+    "",
+    approved
+      ? "Your Kerala Ayurvedh role upgrade request has been approved."
+      : "Your Kerala Ayurvedh role upgrade request has been updated.",
+    "",
+    `From role: ${input.fromRole.replaceAll("_", " ")}`,
+    `Requested role: ${input.toRole.replaceAll("_", " ")}`,
+    `Decision: ${input.decision.replaceAll("_", " ")}`,
+    "",
+    approved
+      ? "Open the Kerala Ayurvedh app and continue with your existing login details."
+      : "Open the Kerala Ayurvedh app to review your current account status.",
     config.supportEmail ? `Support: ${config.supportEmail}` : "",
     "",
     "Regards,",
@@ -259,4 +324,3 @@ export async function sendForgotPasswordOtpEmail(input: SendForgotPasswordOtpEma
 
   return sendSmtpMail(input.to, subject, text);
 }
-

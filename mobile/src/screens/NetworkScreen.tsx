@@ -98,8 +98,9 @@ export function NetworkScreen({ session }: { session: Session }) {
 
     try {
       setLoading(true);
+      let adminCreateEmailResult: { emailSent?: boolean; emailReason?: string } | null = null;
       if (session.user.role === "ADMIN") {
-        await apiRequest<{ user: User }>("/users", {
+        adminCreateEmailResult = await apiRequest<{ user: User; emailSent?: boolean; emailReason?: string }>("/users", {
           method: "POST",
           headers: { Authorization: `Bearer ${session.token}` },
           body: JSON.stringify({
@@ -137,7 +138,11 @@ export function NetworkScreen({ session }: { session: Session }) {
       Alert.alert(
         session.user.role === "ADMIN" ? "Created" : "Application submitted",
         session.user.role === "ADMIN"
-          ? "User created successfully"
+          ? [
+              "User created successfully",
+              `Email: ${adminCreateEmailResult?.emailSent ? "Sent" : "Not sent"}`,
+              adminCreateEmailResult?.emailSent ? "" : `Reason: ${adminCreateEmailResult?.emailReason ?? "Unknown email error"}`
+            ].filter(Boolean).join("\n")
           : "Company Admin will review the details and create login after approval."
       );
     } catch (error) {

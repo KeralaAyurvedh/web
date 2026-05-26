@@ -491,12 +491,20 @@ export function AdminScreen({
   async function decideUpgradeRequest(requestId: string, decision: "APPROVED" | "REJECTED" | "CANCELLED") {
     try {
       setLoading(true);
-      await apiRequest<{ ok: boolean }>(`/admin/upgrade-requests/${requestId}/decision`, {
+      const result = await apiRequest<{ ok: boolean; emailSent?: boolean; emailReason?: string }>(`/admin/upgrade-requests/${requestId}/decision`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${session.token}` },
         body: JSON.stringify({ decision })
       });
       await loadAdminPanel();
+      Alert.alert(
+        "Role upgrade",
+        [
+          `Decision: ${decision}`,
+          `Email: ${result.emailSent ? "Sent" : "Not sent"}`,
+          result.emailSent ? "" : `Reason: ${result.emailReason ?? "Unknown email error"}`
+        ].filter(Boolean).join("\n")
+      );
     } catch (error) {
       Alert.alert("Role upgrade", error instanceof Error ? error.message : "Could not decide request");
     } finally {
@@ -681,7 +689,7 @@ export function AdminScreen({
 
     try {
       setLoading(true);
-      const result = await apiRequest<{ credentials: { phone: string; password: string; emailSent?: boolean } }>(`/admin/applications/${applicationId}/approve`, {
+      const result = await apiRequest<{ credentials: { phone: string; password: string; emailSent?: boolean; emailReason?: string } }>(`/admin/applications/${applicationId}/approve`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${session.token}` },
         body: JSON.stringify({
@@ -693,7 +701,12 @@ export function AdminScreen({
       await loadAdminPanel();
       Alert.alert(
         "Application approved",
-        `Login phone: ${result.credentials.phone}\nPassword: ${result.credentials.password}\nEmail: ${result.credentials.emailSent ? "Sent" : "Not sent"}`
+        [
+          `Login phone: ${result.credentials.phone}`,
+          `Password: ${result.credentials.password}`,
+          `Email: ${result.credentials.emailSent ? "Sent" : "Not sent"}`,
+          result.credentials.emailSent ? "" : `Reason: ${result.credentials.emailReason ?? "Unknown email error"}`
+        ].filter(Boolean).join("\n")
       );
     } catch (error) {
       Alert.alert("Application approval", error instanceof Error ? error.message : "Could not approve application");
