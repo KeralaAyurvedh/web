@@ -620,10 +620,12 @@ function ProductDetailCard({
   addToCart?: (product: Product, quantity: number) => void;
 }) {
   const [quantity, setQuantity] = useState(1);
+  const [imageError, setImageError] = useState(false);
 
   const isAvailable = product.availability === "AVAILABLE";
   const hasStock = typeof product.stock === "number" ? product.stock > 0 : true;
   const orderTotal = Number(product.price) * quantity;
+  const imageUri = mediaUrl(product.imageUrl);
 
   return (
     <View style={styles.productDetailCard}>
@@ -641,8 +643,16 @@ function ProductDetailCard({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ width: "100%", height: "100%", alignItems: "center", justifyContent: "center" }}
         >
-          {product.imageUrl ? (
-            <Image source={{ uri: mediaUrl(product.imageUrl) }} style={styles.detailImage} resizeMode="contain" />
+          {product.imageUrl && !imageError ? (
+            <Image
+              source={{ uri: imageUri }}
+              style={styles.detailImage}
+              resizeMode="contain"
+              onError={(e) => {
+                console.log("Detail image failed to load:", imageUri, e.nativeEvent.error);
+                setImageError(true);
+              }}
+            />
           ) : (
             <Image source={logoImage} style={styles.detailFallbackImage} resizeMode="contain" />
           )}
@@ -731,11 +741,21 @@ function ProductListCard({
   onSelect?: () => void;
   onView?: () => void;
 }) {
+  const [imageError, setImageError] = useState(false);
+  const imageUri = mediaUrl(product.imageUrl);
+
   return (
     <View style={styles.productCard}>
       <View style={styles.productImage}>
-        {product.imageUrl ? (
-          <Image source={{ uri: mediaUrl(product.imageUrl) }} style={styles.productImageInner} />
+        {product.imageUrl && !imageError ? (
+          <Image
+            source={{ uri: imageUri }}
+            style={styles.productImageInner}
+            onError={(e) => {
+              console.log("List image failed to load:", imageUri, e.nativeEvent.error);
+              setImageError(true);
+            }}
+          />
         ) : (
           <Image source={logoImage} style={styles.productLogoFallback} resizeMode="contain" />
         )}

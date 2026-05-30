@@ -16,7 +16,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { Role, TabKey, Session, Product } from "./src/constants/types";
+import { Role, TabKey, Session, Product, User } from "./src/constants/types";
 import { colors } from "./src/constants/theme";
 import {
   canAccessTab,
@@ -330,6 +330,20 @@ export default function App() {
           const parsed = JSON.parse(saved);
           if (parsed && parsed.token && parsed.user) {
             setSession(parsed);
+
+            // Sync user profile details on launch to prevent truncated role bugs (Section A)
+            try {
+              const res = await apiRequest<{ user: User }>("/users/me", {
+                headers: { Authorization: `Bearer ${parsed.token}` }
+              });
+              if (res && res.user) {
+                const updatedSession = { ...parsed, user: res.user };
+                setSession(updatedSession);
+                await AsyncStorage.setItem("user_session", JSON.stringify(updatedSession));
+              }
+            } catch (syncErr) {
+              console.log("App launch session profile sync failed:", syncErr);
+            }
           }
         }
       } catch {
@@ -578,7 +592,8 @@ const styles = StyleSheet.create({
   appShell: {
     flex: 1,
     backgroundColor: "#f7fbf6",
-    paddingTop: Platform.OS === "android" ? (NativeStatusBar.currentHeight && NativeStatusBar.currentHeight > 0 ? NativeStatusBar.currentHeight : 32) : 0
+    paddingTop: Platform.OS === "android" ? (NativeStatusBar.currentHeight && NativeStatusBar.currentHeight > 0 ? NativeStatusBar.currentHeight : 32) : 0,
+    paddingBottom: Platform.OS === "ios" ? 20 : 8
   },
   screen: {
     flex: 1

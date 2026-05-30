@@ -247,7 +247,8 @@ export function visiblePrimaryTabs(role: Role): Array<{ key: TabKey; label: stri
   if (role === "CUSTOMER") {
     return [
       { key: "dashboard", label: "Home", icon: "🏠" },
-      { key: "my-orders", label: "My Orders", icon: "🛒" },
+      { key: "products", label: "Shop", icon: "🛒" },
+      { key: "my-orders", label: "Orders", icon: "📦" },
       { key: "payments", label: "Payments", icon: "💳" },
       { key: "profile", label: "Profile", icon: "👤" }
     ];

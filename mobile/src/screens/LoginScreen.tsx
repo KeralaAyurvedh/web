@@ -312,7 +312,6 @@ export function LoginScreen({ onLogin }: { onLogin: (session: Session) => void }
                 ) : null}
 
                 <Input label="Aadhaar number" value={appAadhaar} onChangeText={setAppAadhaar} keyboardType="numeric" />
-                <Text style={styles.mutedText}>Only Aadhaar number is needed. No document image upload is required.</Text>
                 <Pressable
                   style={styles.privacyConsentRow}
                   onPress={() => setAppPrivacyConsentAccepted((value) => !value)}
@@ -321,7 +320,7 @@ export function LoginScreen({ onLogin }: { onLogin: (session: Session) => void }
                     <Text style={styles.privacyConsentCheck}>{appPrivacyConsentAccepted ? "✓" : ""}</Text>
                   </View>
                   <Text style={styles.privacyConsentText}>
-                    I consent to Kerala Ayurvedh collecting and using Aadhaar number only for identity verification, application review, fraud prevention, and legal compliance. Images are not collected.
+                    I consent to Kerala Ayurvedh collecting and using Aadhaar number only for identity verification, application review, fraud prevention, and legal compliance.
                   </Text>
                 </Pressable>
                 <PrimaryButton

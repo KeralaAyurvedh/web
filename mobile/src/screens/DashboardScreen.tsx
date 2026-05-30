@@ -41,7 +41,8 @@ const bannerImages = [
 ];
 
 export function DashboardScreen({ session, onNavigate }: { session: Session; onNavigate: (tab: TabKey, params?: { helpTopicId?: string }) => void }) {
-  const firstName = session.user.name ? session.user.name.split(" ")[0] : "User";
+  const name = session.user.name?.trim();
+  const firstName = name ? name.split(" ")[0] : "User";
   const [matrices, setMatrices] = useState<Matrix[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [roleDashboard, setRoleDashboard] = useState<RoleDashboardStats | null>(null);
@@ -337,7 +338,6 @@ export function DashboardScreen({ session, onNavigate }: { session: Session; onN
 }
 
 function RoleDashboardSummary({ role, stats, loading, onNavigate }: { role: Role; stats: RoleDashboardStats | null; loading: boolean; onNavigate: (tab: TabKey) => void }) {
-  if (role === "CUSTOMER") return null;
   const liveMetrics = (fallback: Array<{ label: string; value: string }>) => {
     if (!stats) return fallback;
 
@@ -383,7 +383,7 @@ function RoleDashboardSummary({ role, stats, loading, onNavigate }: { role: Role
       ],
       actions: [
         { label: "Open Admin", tab: "admin" },
-        { label: "Products", tab: "products" },
+        { label: "Shop Products", tab: "products" },
         { label: "Payments", tab: "payments" }
       ]
     },
@@ -396,9 +396,9 @@ function RoleDashboardSummary({ role, stats, loading, onNavigate }: { role: Role
         { label: "Earnings", value: "Track" }
       ],
       actions: [
+        { label: "Shop Products", tab: "products" },
         { label: "Add Representative", tab: "network" },
-        { label: "Structure", tab: "tree" },
-        { label: "Earnings", tab: "commissions" }
+        { label: "Structure", tab: "tree" }
       ]
     },
     BETA_MANAGER: {
@@ -410,9 +410,9 @@ function RoleDashboardSummary({ role, stats, loading, onNavigate }: { role: Role
         { label: "Payout", value: "108K" }
       ],
       actions: [
+        { label: "Shop Products", tab: "products" },
         { label: "Add Representative", tab: "network" },
-        { label: "Structure", tab: "tree" },
-        { label: "Earnings", tab: "commissions" }
+        { label: "Structure", tab: "tree" }
       ]
     },
     LEVEL_1: {
@@ -424,9 +424,9 @@ function RoleDashboardSummary({ role, stats, loading, onNavigate }: { role: Role
         { label: "Passives", value: "500" }
       ],
       actions: [
+        { label: "Shop Products", tab: "products" },
         { label: "Add Agent", tab: "network" },
-        { label: "Structure", tab: "tree" },
-        { label: "Earnings", tab: "commissions" }
+        { label: "Structure", tab: "tree" }
       ]
     },
     LEVEL_2: {
@@ -438,8 +438,8 @@ function RoleDashboardSummary({ role, stats, loading, onNavigate }: { role: Role
         { label: "Handovers", value: "Send" }
       ],
       actions: [
+        { label: "Shop Products", tab: "products" },
         { label: "Onboard Cust", tab: "network" },
-        { label: "Products", tab: "products" },
         { label: "Payments", tab: "payments" }
       ]
     },
@@ -452,7 +452,7 @@ function RoleDashboardSummary({ role, stats, loading, onNavigate }: { role: Role
         { label: "UPI/Cash", value: "Pay" }
       ],
       actions: [
-        { label: "View Products", tab: "products" },
+        { label: "Shop Products", tab: "products" },
         { label: "Payments", tab: "payments" },
         { label: "Support FAQ", tab: "help" }
       ]
@@ -530,11 +530,21 @@ function BrandIntro() {
 }
 
 function HomeProductCard({ product, onView }: { product: Product; onView: () => void }) {
+  const [imageError, setImageError] = useState(false);
+  const imageUri = mediaUrl(product.imageUrl);
+
   return (
     <Pressable style={styles.homeProductCard} onPress={onView}>
       <View style={styles.homeProductImageWrap}>
-        {product.imageUrl ? (
-          <Image source={{ uri: mediaUrl(product.imageUrl) }} style={styles.homeProductImage as any} />
+        {product.imageUrl && !imageError ? (
+          <Image
+            source={{ uri: imageUri }}
+            style={styles.homeProductImage as any}
+            onError={(e) => {
+              console.log("Home featured product image failed to load:", imageUri, e.nativeEvent.error);
+              setImageError(true);
+            }}
+          />
         ) : (
           <Image source={logoImage} style={styles.homeProductFallbackImage as any} resizeMode="contain" />
         )}
@@ -694,6 +704,7 @@ function ProductDetailCard({
   const [quantity, setQuantity] = useState(1);
   const [showSummary, setShowSummary] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const isCustomer = session.user.role === "CUSTOMER";
   const isAvailable = product.availability === "AVAILABLE";
@@ -728,6 +739,8 @@ function ProductDetailCard({
     }
   }
 
+  const imageUri = mediaUrl(product.imageUrl);
+
   return (
     <View style={styles.productDetailCard}>
       <View style={styles.productDetailHeader}>
@@ -737,8 +750,15 @@ function ProductDetailCard({
         </Pressable>
       </View>
       <View style={styles.detailImageWrap}>
-        {product.imageUrl ? (
-          <Image source={{ uri: mediaUrl(product.imageUrl) }} style={styles.detailImage as any} />
+        {product.imageUrl && !imageError ? (
+          <Image
+            source={{ uri: imageUri }}
+            style={styles.detailImage as any}
+            onError={(e) => {
+              console.log("Details image failed to load:", imageUri, e.nativeEvent.error);
+              setImageError(true);
+            }}
+          />
         ) : (
           <Image source={logoImage} style={styles.detailFallbackImage as any} resizeMode="contain" />
         )}

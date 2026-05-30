@@ -62,28 +62,35 @@ authRouter.post("/login", rateLimit({ keyPrefix: "auth-login", windowMs: 15 * 60
 
   if (!user) {
     recordFailedLogin(parsed.data.phone, req.ip);
-    return res.status(401).json({ error: "Invalid phone or password" });
+    console.log(`[LOGIN FAILED] Phone: ${parsed.data.phone} - Reason: No account found with this phone number. IP: ${req.ip}`);
+    return res.status(401).json({ error: "No account found with this phone number." });
   }
 
   const ok = await bcrypt.compare(parsed.data.password, user.passwordHash);
   if (!ok) {
     recordFailedLogin(parsed.data.phone, req.ip);
-    return res.status(401).json({ error: "Invalid phone or password" });
+    console.log(`[LOGIN FAILED] Phone: ${parsed.data.phone} (Name: ${user.name}, Role: ${user.role}) - Reason: Incorrect password. IP: ${req.ip}`);
+    return res.status(401).json({ error: "Incorrect password. Please try again." });
   }
 
   if (user.status !== "ACTIVE") {
-    return res.status(403).json({ error: "Account is not active" });
+    console.log(`[LOGIN FAILED] Phone: ${parsed.data.phone} (Name: ${user.name}, Role: ${user.role}) - Reason: Account status is ${user.status} (Inactive). IP: ${req.ip}`);
+    return res.status(403).json({ error: "Your account is inactive. Contact support." });
   }
 
   clearFailedLogins(parsed.data.phone, req.ip);
+  console.log(`[LOGIN SUCCESS] Phone: ${parsed.data.phone} (Name: ${user.name}, Role: ${user.role}) - IP: ${req.ip}`);
 
   const token = jwt.sign(
     {
       id: user.id,
-      role: user.role
+      userId: user.id,
+      role: user.role,
+      name: user.name,
+      phone: user.phone
     },
     config.jwtSecret,
-    { expiresIn: "7d" }
+    { expiresIn: "30d" }
   );
 
   return res.json({

@@ -63,12 +63,12 @@ ordersRouter.post("/", requireAuth, async (req, res) => {
   }
 
   const customer = await prisma.user.findUnique({ where: { id: parsed.data.customerId } });
-  if (!customer || customer.role !== Role.CUSTOMER) {
-    return res.status(400).json({ error: "Order customer must be a Customer user" });
+  if (!customer) {
+    return res.status(400).json({ error: "Order customer not found" });
   }
 
   if (req.user!.role !== Role.ADMIN && req.user!.id !== customer.id && req.user!.id !== customer.sponsorId) {
-    return res.status(403).json({ error: "Only the Customer, their Level 2 Agent, or Admin can create this order" });
+    return res.status(403).json({ error: "Only the user, their direct sponsor, or Admin can create this order" });
   }
 
   const products = await prisma.product.findMany({

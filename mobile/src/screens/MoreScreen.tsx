@@ -69,9 +69,7 @@ export function MoreScreen({
           <Text style={styles.moreMeta}>
             {session.user.role === "ADMIN" ? `${formatRole(session.user.role)} - ` : ""}{session.user.status}
           </Text>
-          {session.user.role !== "CUSTOMER" ? (
-            <Text style={styles.moreReferral}>Employee ID: {session.user.referralCode}</Text>
-          ) : null}
+          <Text style={styles.moreReferral}>Employee ID: {session.user.referralCode}</Text>
         </View>
       </View>
 

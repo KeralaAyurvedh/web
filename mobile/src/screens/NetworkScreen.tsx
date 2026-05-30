@@ -191,7 +191,6 @@ export function NetworkScreen({ session }: { session: Session }) {
         ) : (
           <>
             <Input label="Aadhaar number" value={aadhaarNumber} onChangeText={setAadhaarNumber} keyboardType="numeric" />
-            <Text style={styles.mutedText}>No Aadhaar image upload is needed.</Text>
             <Pressable
               style={styles.consentRow}
               onPress={() => setPrivacyConsentAccepted((value) => !value)}
@@ -200,7 +199,7 @@ export function NetworkScreen({ session }: { session: Session }) {
                 <Text style={styles.consentCheck}>{privacyConsentAccepted ? "✓" : ""}</Text>
               </View>
               <Text style={styles.consentText}>
-                I confirm this applicant has consented to Kerala Ayurvedh collecting and using Aadhaar number only for identity verification, application review, fraud prevention, and legal compliance. Images are not collected.
+                I confirm this applicant has consented to Kerala Ayurvedh collecting and using Aadhaar number only for identity verification, application review, fraud prevention, and legal compliance.
               </Text>
             </Pressable>
           </>

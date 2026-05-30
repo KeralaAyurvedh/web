@@ -14,36 +14,35 @@ function SystemInfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function LockedProfileNotice({ session }: { session: Session }) {
+  return (
+    <View style={styles.lockedCard}>
+      <View style={styles.lockedIconCircle}>
+        <Text style={styles.lockedIconText}>ðŸ”’</Text>
+      </View>
+      <Text style={styles.lockedTitle}>Profile Restricted</Text>
+      <Text style={styles.lockedMessage}>
+        Profile access is restricted. Please contact Kerala Ayurvedh support to request access.
+      </Text>
+      <Pressable
+        style={styles.requestAccessButton}
+        onPress={() => {
+          Linking.openURL(
+            `mailto:support@keralaayurvedh.com?subject=Profile%20Access%20Request&body=Hello,%0D%0AI%20would%20like%20to%20request%20access%20to%20my%20profile.%0D%0A%0D%0AUser%20Details:%0D%0AName:%20${encodeURIComponent(session.user.name)}%0D%0APhone:%20${session.user.phone}%0D%0AUser%20ID:%20${session.user.id}`
+          );
+        }}
+      >
+        <Text style={styles.requestAccessButtonText}>Request Access</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export function ProfileScreen({ session, onSessionUpdate }: { session: Session; onSessionUpdate?: (session: Session) => void }) {
   const displayRole = formatRole(session.user.role);
   const isCustomer = session.user.role === "CUSTOMER";
   const isProfileLocked = isCustomer && !session.user.profileUnlocked;
 
-  if (isProfileLocked) {
-    return (
-      <View style={styles.lockedContainer}>
-        <View style={styles.lockedCard}>
-          <View style={styles.lockedIconCircle}>
-            <Text style={styles.lockedIconText}>🔒</Text>
-          </View>
-          <Text style={styles.lockedTitle}>Profile Restricted</Text>
-          <Text style={styles.lockedMessage}>
-            Profile access is restricted. Please contact Kerala Ayurvedh support to request access.
-          </Text>
-          <Pressable
-            style={styles.requestAccessButton}
-            onPress={() => {
-              Linking.openURL(
-                `mailto:support@keralaayurvedh.com?subject=Profile%20Access%20Request&body=Hello,%0D%0AI%20would%20like%20to%20request%20access%20to%20my%20profile.%0D%0A%0D%0AUser%20Details:%0D%0AName:%20${encodeURIComponent(session.user.name)}%0D%0APhone:%20${session.user.phone}%0D%0AUser%20ID:%20${session.user.id}`
-              );
-            }}
-          >
-            <Text style={styles.requestAccessButtonText}>Request Access</Text>
-          </Pressable>
-        </View>
-      </View>
-    );
-  }
   const [refreshing, setRefreshing] = useState(false);
 
   // Upgrade requests states
@@ -165,30 +164,30 @@ export function ProfileScreen({ session, onSessionUpdate }: { session: Session; 
         <SystemInfoRow label="Phone" value={session.user.phone} />
         {session.user.role === "ADMIN" && <SystemInfoRow label="Role" value={displayRole} />}
         <SystemInfoRow label="Status" value={session.user.status} />
-        {session.user.role !== "CUSTOMER" ? (
-          <View style={styles.systemInfoRow}>
-            <Text style={styles.systemInfoLabel}>Employee ID</Text>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text style={styles.systemInfoValue}>{session.user.referralCode}</Text>
-              <Pressable
-                onPress={() => {
-                  Clipboard.setString(session.user.referralCode);
-                  Alert.alert("Copied", "Employee ID copied to clipboard!");
-                }}
-                style={({ pressed }) => [
-                  styles.copyButton,
-                  { opacity: pressed ? 0.6 : 1 }
-                ]}
-              >
-                <Text style={styles.copyButtonText}>Copy</Text>
-              </Pressable>
-            </View>
+        <View style={styles.systemInfoRow}>
+          <Text style={styles.systemInfoLabel}>Employee ID</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Text style={{ color: colors.slate900, fontSize: 12, fontWeight: "900" }}>{session.user.referralCode}</Text>
+            <Pressable
+              onPress={() => {
+                Clipboard.setString(session.user.referralCode);
+                Alert.alert("Copied", "Employee ID copied to clipboard!");
+              }}
+              style={({ pressed }) => [
+                styles.copyButton,
+                { opacity: pressed ? 0.6 : 1, marginLeft: 0 }
+              ]}
+            >
+              <Text style={styles.copyButtonText}>Copy</Text>
+            </Pressable>
           </View>
-        ) : null}
+        </View>
       </View>
 
+      {isProfileLocked ? <LockedProfileNotice session={session} /> : null}
+
       {/* Become a Partner Section */}
-      {session.user.role === "CUSTOMER" && (
+      {!isProfileLocked && session.user.role === "CUSTOMER" && (
         <View style={styles.upgradeCard}>
           <Text style={styles.upgradeTitle}>Become a Kerala Ayurvedh Partner</Text>
           <Text style={styles.upgradeText}>
@@ -227,7 +226,7 @@ export function ProfileScreen({ session, onSessionUpdate }: { session: Session; 
       )}
 
       {/* Upgrade Modal */}
-      {showUpgradeModal && (
+      {!isProfileLocked && showUpgradeModal && (
         <Modal visible={showUpgradeModal} transparent animationType="slide" onRequestClose={() => setShowUpgradeModal(false)}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
@@ -254,7 +253,7 @@ export function ProfileScreen({ session, onSessionUpdate }: { session: Session; 
                     <Text style={styles.privacyConsentCheck}>{privacyConsentAccepted ? "✓" : ""}</Text>
                   </View>
                   <Text style={styles.privacyConsentText}>
-                    I consent to Kerala Ayurvedh collecting and using my Aadhaar number only for identity verification, application review, fraud prevention, and legal compliance. Images are not collected.
+                    I consent to Kerala Ayurvedh collecting and using my Aadhaar number only for identity verification, application review, fraud prevention, and legal compliance.
                   </Text>
                 </Pressable>
                 
@@ -337,7 +336,6 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   systemInfoValue: {
-    flex: 1.3,
     color: colors.slate900,
     fontSize: 12,
     fontWeight: "900",
