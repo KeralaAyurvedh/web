@@ -7,6 +7,7 @@ export type User = {
   role: Role;
   status: string;
   referralCode: string;
+  profileUnlocked?: boolean;
   sponsorId?: string | null;
   placementType?: string;
   betaManagerEligibility?: {
@@ -109,7 +110,7 @@ export type Session = {
   user: User;
 };
 
-export type TabKey = "dashboard" | "products" | "network" | "more" | "admin" | "tree" | "commissions" | "payments" | "profile" | "security" | "help";
+export type TabKey = "dashboard" | "products" | "network" | "more" | "admin" | "tree" | "commissions" | "payments" | "profile" | "security" | "help" | "cart" | "my-orders";
 
 export type AdminStats = {
   totalUsers: number;

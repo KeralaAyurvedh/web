@@ -253,7 +253,7 @@ export function PaymentsScreen({ session }: { session: Session }) {
     if (targetRank > currentRank) {
       if (targetUser.role === "ADMIN") return "Company Admin";
       if (targetUser.role === "MANAGER" || targetUser.role === "BETA_MANAGER") return "Upline Manager";
-      if (targetUser.role === "LEVEL_1") return "Upline Main Pillar Advisor";
+      if (targetUser.role === "LEVEL_1") return "Upline Representative Advisor";
       if (targetUser.role === "LEVEL_2") return "Upline Representative";
     }
 

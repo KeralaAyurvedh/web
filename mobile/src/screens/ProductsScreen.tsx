@@ -37,7 +37,15 @@ type SelectedProductImage = {
   size?: number;
 };
 
-export function ProductsScreen({ session, onNavigate }: { session: Session; onNavigate?: (tab: TabKey) => void }) {
+export function ProductsScreen({
+  session,
+  onNavigate,
+  addToCart
+}: {
+  session: Session;
+  onNavigate?: (tab: TabKey) => void;
+  addToCart?: (product: Product, quantity: number) => void;
+}) {
   const scrollRef = useRef<ScrollView>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -386,41 +394,7 @@ export function ProductsScreen({ session, onNavigate }: { session: Session; onNa
     loadOrderOptions();
   }, []);
 
-  if (session.user.role === "CUSTOMER") {
-    return (
-      <ScrollView contentContainerStyle={styles.content}>
-        <SectionHeader title="My Orders" action="Refresh" onAction={loadOrderOptions} />
-        {loading && <ActivityIndicator color={colors.brand600} />}
-        {customerOrders.length === 0 && !loading ? (
-          <EmptyState title="No orders yet" text="Your Ayurvedic wellness orders will appear here after they are placed." />
-        ) : (
-          customerOrders.map((order) => (
-            <View key={order.id} style={styles.adminListBlock}>
-              <View style={styles.handoverHeader}>
-                <Text style={styles.listTitle}>Order #{order.id.slice(-6).toUpperCase()}</Text>
-                <View style={[styles.statusBadge, order.paymentStatus === "RECEIVED_BY_COMPANY" ? styles.badgeReceived : styles.badgePending]}>
-                  <Text style={styles.statusBadgeText}>{order.paymentStatus.replaceAll("_", " ")}</Text>
-                </View>
-              </View>
-              
-              <Text style={styles.detailLine}>Status: <Text style={{fontWeight: "900", color: colors.brand800}}>{order.status.replaceAll("_", " ")}</Text></Text>
-              <Text style={styles.detailLine}>Amount: {formatMoney(order.totalAmount)}</Text>
-              
-              <Text style={styles.detailSectionTitle}>Items Ordered</Text>
-              {order.items?.map((item: any, idx: number) => (
-                <Text key={idx} style={styles.detailLine}>• {item.product?.name ?? "Ayurvedic Product"} (Qty: {item.quantity})</Text>
-              ))}
 
-              <Text style={styles.holderInfoText}>
-                Distribution Pathway Stage: {order.status.replaceAll("_", " ")}
-              </Text>
-              <OrderPipelineStepper status={order.status} />
-            </View>
-          ))
-        )}
-      </ScrollView>
-    );
-  }
 
   return (
     <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
@@ -558,6 +532,7 @@ export function ProductsScreen({ session, onNavigate }: { session: Session; onNa
           users={users}
           onClose={() => setSelectedProduct(null)}
           onNavigate={onNavigate}
+          addToCart={addToCart}
         />
       ) : null}
       {loading && <ActivityIndicator color={colors.brand600} />}
@@ -566,7 +541,16 @@ export function ProductsScreen({ session, onNavigate }: { session: Session; onNa
       ) : (
         visibleProducts.map((product) => (
           <View key={product.id}>
-            <ProductListCard product={product} onView={() => setSelectedProduct(product)} onSelect={() => setOrderProductId(product.id)} />
+            <ProductListCard
+              product={product}
+              onView={() => setSelectedProduct(product)}
+              onSelect={() => {
+                if (addToCart) {
+                  addToCart(product, 1);
+                  Alert.alert("Added to Cart", `${product.name} has been added to your shopping cart.`);
+                }
+              }}
+            />
             {session.user.role === "ADMIN" ? (
               <View style={styles.adminProductActions}>
                 <Pressable style={styles.adminActionButton} onPress={() => editProduct(product)}>
@@ -624,54 +608,22 @@ function CategoryRail({
 function ProductDetailCard({
   product,
   session,
-  users,
   onClose,
-  onNavigate
+  onNavigate,
+  addToCart
 }: {
   product: Product;
   session: Session;
-  users: User[];
+  users?: User[];
   onClose: () => void;
   onNavigate?: (tab: any) => void;
+  addToCart?: (product: Product, quantity: number) => void;
 }) {
   const [quantity, setQuantity] = useState(1);
-  const [selectedCustomerId, setSelectedCustomerId] = useState("");
-  const [showSummary, setShowSummary] = useState(false);
-  const [placingOrder, setPlacingOrder] = useState(false);
 
   const isAvailable = product.availability === "AVAILABLE";
   const hasStock = typeof product.stock === "number" ? product.stock > 0 : true;
   const orderTotal = Number(product.price) * quantity;
-
-  async function handleProceedToPayment() {
-    try {
-      setPlacingOrder(true);
-      const customerId = session.user.role === "CUSTOMER" ? session.user.id : selectedCustomerId;
-      await apiRequest<{ order: any }>("/orders", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session.token}` },
-        body: JSON.stringify({
-          customerId,
-          items: [
-            {
-              productId: product.id,
-              quantity: quantity
-            }
-          ]
-        })
-      });
-      setShowSummary(false);
-      onClose();
-      Alert.alert("Order Placed Successfully", "Please proceed to make payment for your order.");
-      if (onNavigate) {
-        onNavigate("payments");
-      }
-    } catch (error) {
-      Alert.alert("Order Placement Failed", error instanceof Error ? error.message : "Could not create order");
-    } finally {
-      setPlacingOrder(false);
-    }
-  }
 
   return (
     <View style={styles.productDetailCard}>
@@ -682,11 +634,19 @@ function ProductDetailCard({
         </Pressable>
       </View>
       <View style={styles.detailImageWrap}>
-        {product.imageUrl ? (
-          <Image source={{ uri: mediaUrl(product.imageUrl) }} style={styles.detailImage} />
-        ) : (
-          <Image source={logoImage} style={styles.detailFallbackImage} resizeMode="contain" />
-        )}
+        <ScrollView
+          maximumZoomScale={3.0}
+          minimumZoomScale={1.0}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ width: "100%", height: "100%", alignItems: "center", justifyContent: "center" }}
+        >
+          {product.imageUrl ? (
+            <Image source={{ uri: mediaUrl(product.imageUrl) }} style={styles.detailImage} resizeMode="contain" />
+          ) : (
+            <Image source={logoImage} style={styles.detailFallbackImage} resizeMode="contain" />
+          )}
+        </ScrollView>
       </View>
       <Text style={styles.productCategoryText}>{product.category}</Text>
       <Text style={styles.productPrice}>{formatMoney(product.price)}</Text>
@@ -722,31 +682,35 @@ function ProductDetailCard({
               </View>
             </View>
 
-            {session.user.role !== "CUSTOMER" && (
-              <View style={{ marginVertical: 10 }}>
-                <Text style={styles.inputLabel}>Select Customer</Text>
-                <OptionList
-                  items={users.filter((user) => user.role === "CUSTOMER")}
-                  selectedId={selectedCustomerId}
-                  emptyText="No customers found"
-                  onSelect={setSelectedCustomerId}
-                  renderLabel={(user) => `${user.name} - ${user.phone}`}
-                />
-              </View>
-            )}
+            <View style={styles.detailActionsRow}>
+              <Pressable
+                style={styles.addToCartBtnDetail}
+                onPress={() => {
+                  if (addToCart) {
+                    addToCart(product, quantity);
+                    Alert.alert("Added to Cart", `${quantity}x ${product.name} added to cart!`);
+                    onClose();
+                  }
+                }}
+              >
+                <Text style={styles.addToCartBtnDetailText}>Add to Cart</Text>
+              </Pressable>
 
-            <Pressable
-              style={styles.buyNowBtn}
-              onPress={() => {
-                if (session.user.role !== "CUSTOMER" && !selectedCustomerId) {
-                  Alert.alert("Error", "Please select a customer first.");
-                  return;
-                }
-                setShowSummary(true);
-              }}
-            >
-              <Text style={styles.buyNowBtnText}>Buy Now — {formatMoney(orderTotal)}</Text>
-            </Pressable>
+              <Pressable
+                style={styles.buyNowBtnDetail}
+                onPress={() => {
+                  if (addToCart) {
+                    addToCart(product, quantity);
+                    onClose();
+                    if (onNavigate) {
+                      onNavigate("cart");
+                    }
+                  }
+                }}
+              >
+                <Text style={styles.buyNowBtnDetailText}>Buy Now — {formatMoney(orderTotal)}</Text>
+              </Pressable>
+            </View>
           </>
         ) : (
           <Text style={[styles.availabilityText, { color: colors.danger, textAlign: "center", marginVertical: 10 }]}>
@@ -754,65 +718,6 @@ function ProductDetailCard({
           </Text>
         )}
       </View>
-
-      <Modal visible={showSummary} transparent={true} animationType="fade" onRequestClose={() => setShowSummary(false)}>
-        <View style={styles.summaryOverlay}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryCardTitle}>Order Summary</Text>
-
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryRowLabel}>Product</Text>
-              <Text style={styles.summaryRowVal}>{product.name}</Text>
-            </View>
-
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryRowLabel}>Quantity</Text>
-              <Text style={styles.summaryRowVal}>{quantity}</Text>
-            </View>
-
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryRowLabel}>Price</Text>
-              <Text style={styles.summaryRowVal}>{formatMoney(product.price)} / unit</Text>
-            </View>
-
-            {session.user.role !== "CUSTOMER" && (
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryRowLabel}>Customer</Text>
-                <Text style={styles.summaryRowVal}>
-                  {users.find((u) => u.id === selectedCustomerId)?.name || "Selected Customer"}
-                </Text>
-              </View>
-            )}
-
-            <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: colors.slate100, marginTop: 8, paddingTop: 8 }]}>
-              <Text style={[styles.summaryRowLabel, { color: colors.slate900 }]}>Total Amount</Text>
-              <Text style={[styles.summaryRowVal, { color: colors.brand600, fontSize: 16 }]}>{formatMoney(orderTotal)}</Text>
-            </View>
-
-            <View style={styles.summaryActionsRow}>
-              <Pressable
-                style={styles.summaryCancelBtn}
-                onPress={() => setShowSummary(false)}
-                disabled={placingOrder}
-              >
-                <Text style={styles.summaryCancelBtnText}>Cancel</Text>
-              </Pressable>
-
-              <Pressable
-                style={styles.summaryConfirmBtn}
-                onPress={handleProceedToPayment}
-                disabled={placingOrder}
-              >
-                {placingOrder ? (
-                  <ActivityIndicator color={colors.white} size="small" />
-                ) : (
-                  <Text style={styles.summaryConfirmBtnText}>Confirm & Proceed</Text>
-                )}
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -844,12 +749,12 @@ function ProductListCard({
         <View style={styles.productActions}>
           {onView ? (
             <Pressable style={styles.smallAction} onPress={onView}>
-              <Text style={styles.smallActionText}>View</Text>
+              <Text style={styles.smallActionText}>View Details</Text>
             </Pressable>
           ) : null}
           {onSelect ? (
-            <Pressable style={styles.smallAction} onPress={onSelect}>
-              <Text style={styles.smallActionText}>Use for order</Text>
+            <Pressable style={[styles.smallAction, { backgroundColor: colors.brand700 }]} onPress={onSelect}>
+              <Text style={[styles.smallActionText, { color: colors.white }]}>Add to Cart</Text>
             </Pressable>
           ) : null}
         </View>
@@ -1396,6 +1301,39 @@ const styles = StyleSheet.create({
   summaryConfirmBtnText: {
     color: colors.white,
     fontSize: 13,
+    fontWeight: "900"
+  },
+  detailActionsRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 12
+  },
+  addToCartBtnDetail: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.brand700,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  addToCartBtnDetailText: {
+    color: colors.brand700,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  buyNowBtnDetail: {
+    flex: 1.4,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: colors.brand700,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  buyNowBtnDetailText: {
+    color: colors.white,
+    fontSize: 14,
     fontWeight: "900"
   }
 });

@@ -28,7 +28,8 @@ import {
   catalogCategories,
   trustCards,
   wellnessHighlights,
-  customerReviews
+  customerReviews,
+  commonHelpTopics
 } from "../constants/guides";
 import { SectionHeader, Input, TextArea, OptionList, PrimaryButton } from "../components/UI/FormControls";
 
@@ -39,7 +40,8 @@ const bannerImages = [
   require("../../assets/banner3.png")
 ];
 
-export function DashboardScreen({ session, onNavigate }: { session: Session; onNavigate: (tab: TabKey) => void }) {
+export function DashboardScreen({ session, onNavigate }: { session: Session; onNavigate: (tab: TabKey, params?: { helpTopicId?: string }) => void }) {
+  const firstName = session.user.name ? session.user.name.split(" ")[0] : "User";
   const [matrices, setMatrices] = useState<Matrix[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [roleDashboard, setRoleDashboard] = useState<RoleDashboardStats | null>(null);
@@ -52,6 +54,94 @@ export function DashboardScreen({ session, onNavigate }: { session: Session; onN
   const [productError, setProductError] = useState("");
   const { width } = useWindowDimensions();
   const useTwoColumns = width >= 380;
+
+  const liveSearchResults = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return [];
+
+    const results: Array<{
+      type: "product" | "help" | "page";
+      icon: string;
+      title: string;
+      category: string;
+      product?: Product;
+      tab?: TabKey;
+      helpTopicId?: string;
+    }> = [];
+
+    // 1. Products
+    products.forEach((product) => {
+      if (
+        product.name.toLowerCase().includes(term) ||
+        (product.description && product.description.toLowerCase().includes(term)) ||
+        (product.shortDescription && product.shortDescription.toLowerCase().includes(term))
+      ) {
+        results.push({
+          type: "product",
+          icon: "🛒",
+          title: product.name,
+          category: `Product - ${product.category || "General"}`,
+          product
+        });
+      }
+    });
+
+    // 2. Help Topics
+    commonHelpTopics.forEach((topic) => {
+      if (
+        topic.title.toLowerCase().includes(term) ||
+        topic.text.toLowerCase().includes(term) ||
+        topic.keywords.some((kw) => kw.toLowerCase().includes(term))
+      ) {
+        results.push({
+          type: "help",
+          icon: "💡",
+          title: topic.title,
+          category: "Help Topic",
+          helpTopicId: topic.id
+        });
+      }
+    });
+
+    // 3. Payments
+    if ("payments".includes(term) || "pay".includes(term) || "handover".includes(term)) {
+      results.push({
+        type: "page",
+        icon: "💳",
+        title: "Payments",
+        category: "Page",
+        tab: "payments"
+      });
+    }
+
+    // 4. Profile
+    if ("profile".includes(term) || "account".includes(term) || "employee".includes(term)) {
+      const isCustomer = session.user.role === "CUSTOMER";
+      const isProfileUnlocked = !isCustomer || session.user.profileUnlocked;
+      if (isProfileUnlocked) {
+        results.push({
+          type: "page",
+          icon: "👤",
+          title: "Profile",
+          category: "Page",
+          tab: "profile"
+        });
+      }
+    }
+
+    // 5. My Orders
+    if ("orders".includes(term) || "my orders".includes(term) || "order".includes(term) || "status".includes(term) || "history".includes(term)) {
+      results.push({
+        type: "page",
+        icon: "📦",
+        title: "My Orders",
+        category: "Page",
+        tab: "my-orders"
+      });
+    }
+
+    return results;
+  }, [search, products, commonHelpTopics, session.user.role, session.user.profileUnlocked]);
 
   const visibleProducts = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -118,28 +208,63 @@ export function DashboardScreen({ session, onNavigate }: { session: Session; onN
 
       <View style={styles.homeWelcome}>
         <View>
-          <Text style={styles.homeGreeting}>Hi, {session.user.name}</Text>
+          <Text style={styles.homeGreeting}>Hi, {firstName}</Text>
           <Text style={styles.homeMeta}>Welcome back to Kerala Ayurvedh</Text>
         </View>
-        <View style={styles.homeRoleBadge}>
-          <Text style={styles.homeRoleBadgeText}>{formatRole(session.user.role)}</Text>
-        </View>
+        {session.user.role === "ADMIN" && (
+          <View style={styles.homeRoleBadge}>
+            <Text style={styles.homeRoleBadgeText}>{formatRole(session.user.role)}</Text>
+          </View>
+        )}
       </View>
 
       <RoleDashboardSummary role={session.user.role} stats={roleDashboard} loading={loadingDashboard} onNavigate={onNavigate} />
 
-      <View style={styles.searchRow}>
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search wellness products"
-          placeholderTextColor={colors.slate500}
-          style={styles.searchInput}
-        />
-        <View style={styles.searchIcon}>
-          <View style={styles.searchCircle} />
-          <View style={styles.searchHandle} />
+      <View style={{ position: "relative", zIndex: 999 }}>
+        <View style={styles.searchRow}>
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search wellness products, pages, help..."
+            placeholderTextColor={colors.slate500}
+            style={styles.searchInput}
+          />
+          <Text style={{ fontSize: 16, color: colors.slate500 }}>🔍</Text>
         </View>
+        {search.trim().length > 0 && (
+          <View style={styles.searchResultsContainer}>
+            <ScrollView style={{ maxHeight: 250 }} keyboardShouldPersistTaps="handled">
+              {liveSearchResults.length === 0 ? (
+                <View style={styles.searchResultItem}>
+                  <Text style={styles.searchResultTextEmpty}>No matches found</Text>
+                </View>
+              ) : (
+                liveSearchResults.map((item, index) => (
+                  <Pressable
+                    key={index}
+                    style={styles.searchResultItem}
+                    onPress={() => {
+                      setSearch("");
+                      if (item.type === "product" && item.product) {
+                        setSelectedProduct(item.product);
+                      } else if (item.type === "page" && item.tab) {
+                        onNavigate(item.tab);
+                      } else if (item.type === "help" && item.helpTopicId) {
+                        onNavigate("help", { helpTopicId: item.helpTopicId });
+                      }
+                    }}
+                  >
+                    <Text style={styles.searchResultIcon}>{item.icon}</Text>
+                    <View style={styles.searchResultTextContainer}>
+                      <Text style={styles.searchResultTitle}>{item.title}</Text>
+                      <Text style={styles.searchResultSubtitle}>{item.category}</Text>
+                    </View>
+                  </Pressable>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        )}
       </View>
 
       <BrandIntro />
@@ -264,34 +389,34 @@ function RoleDashboardSummary({ role, stats, loading, onNavigate }: { role: Role
     },
     MANAGER: {
       title: "Manager dashboard",
-      text: "Add Main Pillar applications, track your network and complete 216 confirmed customers to unlock Beta Manager.",
+      text: "Add Representative applications, track your network and complete 216 confirmed customers to unlock Beta Manager.",
       metrics: [
-        { label: "Next", value: "Main Pillar" },
+        { label: "Next", value: "Representative" },
         { label: "Target", value: "216" },
         { label: "Earnings", value: "Track" }
       ],
       actions: [
-        { label: "Add Main Pillar", tab: "network" },
+        { label: "Add Representative", tab: "network" },
         { label: "Structure", tab: "tree" },
         { label: "Earnings", tab: "commissions" }
       ]
     },
     BETA_MANAGER: {
       title: "Beta Manager dashboard",
-      text: "Build your matrix through Main Pillar and Representative members. Track confirmed customer progress.",
+      text: "Build your matrix through Representative members. Track confirmed customer progress.",
       metrics: [
-        { label: "Main Pillar Agents", value: "Recruit" },
+        { label: "Representatives", value: "Recruit" },
         { label: "Target", value: "216" },
         { label: "Payout", value: "108K" }
       ],
       actions: [
-        { label: "Add Main Pillar", tab: "network" },
+        { label: "Add Representative", tab: "network" },
         { label: "Structure", tab: "tree" },
         { label: "Earnings", tab: "commissions" }
       ]
     },
     LEVEL_1: {
-      title: "Main Pillar Advisor dashboard",
+      title: "Representative Advisor dashboard",
       text: "Expand your advisory team by recruiting Representative agents and coordinating manual payments.",
       metrics: [
         { label: "Recruit", value: "Direct" },
@@ -1692,5 +1817,57 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 13,
     fontWeight: "900"
+  },
+  searchResultsContainer: {
+    position: "absolute",
+    top: 60,
+    left: 16,
+    right: 16,
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    shadowColor: colors.slate900,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+    maxHeight: 250,
+    overflow: "hidden"
+  },
+  searchResultItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.slate100
+  },
+  searchResultIcon: {
+    fontSize: 20,
+    marginRight: 12,
+    width: 24,
+    textAlign: "center"
+  },
+  searchResultTextContainer: {
+    flex: 1
+  },
+  searchResultTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.slate900
+  },
+  searchResultSubtitle: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.slate500,
+    marginTop: 2
+  },
+  searchResultTextEmpty: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.slate500,
+    textAlign: "center",
+    width: "100%",
+    paddingVertical: 12
   }
 });

@@ -1285,6 +1285,45 @@ adminRouter.patch("/users/:id/status", async (req, res) => {
   return res.json({ user });
 });
 
+adminRouter.patch("/users/:id/profile-access", async (req, res) => {
+  const parsed = z.object({ profileUnlocked: z.boolean() }).safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid profile access state", details: parsed.error.flatten() });
+  }
+
+  const target = await prisma.user.findUnique({ where: { id: String(req.params.id) } });
+  if (!target) {
+    return res.status(404).json({ error: "User not found" });
+  }
+  if (target.role === Role.ADMIN) {
+    return res.status(403).json({ error: "Admin profile access state cannot be changed" });
+  }
+
+  const user = await prisma.user.update({
+    where: { id: target.id },
+    data: { profileUnlocked: parsed.data.profileUnlocked },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      role: true,
+      status: true,
+      profileUnlocked: true,
+      referralCode: true
+    }
+  });
+
+  await writeAuditLog({
+    actorId: req.user!.id,
+    action: "USER_PROFILE_ACCESS_UPDATED",
+    entityType: "User",
+    entityId: user.id,
+    metadata: { profileUnlocked: user.profileUnlocked }
+  });
+
+  return res.json({ user });
+});
+
 const resetUserPasswordSchema = z.object({
   password: strongPassword
 });

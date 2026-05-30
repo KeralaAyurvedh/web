@@ -13,8 +13,8 @@ export function Input(props: {
   placeholder?: string;
   maxLength?: number;
 }) {
-  const [hidePassword, setHidePassword] = useState(props.secureTextEntry === true);
-  const isPassword = props.secureTextEntry === true;
+  const [hidePassword, setHidePassword] = useState(!!props.secureTextEntry);
+  const isPassword = !!props.secureTextEntry;
 
   return (
     <View style={styles.inputGroup}>

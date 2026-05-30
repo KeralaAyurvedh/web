@@ -33,11 +33,17 @@ import { PrimaryButton } from "../components/UI/FormControls";
 export function HelpScreen({
   session,
   onNavigate,
-  onShowGuide
+  onShowGuide,
+  onOpenSearch,
+  initialTopicId,
+  onClearInitialTopicId
 }: {
   session: Session;
   onNavigate: (tab: TabKey) => void;
   onShowGuide: () => void;
+  onOpenSearch?: () => void;
+  initialTopicId?: string | null;
+  onClearInitialTopicId?: () => void;
 }) {
   const [search, setSearch] = useState("");
   const [selectedTopic, setSelectedTopic] = useState<HelpTopic | null>(null);
@@ -49,12 +55,24 @@ export function HelpScreen({
   const isAdmin = session.user.role === "ADMIN";
   const visibleGuides = isAdmin ? Object.values(helpGuides) : [guide];
   
-  const helpTopics = filterHelpTopicsForRole(
+  const helpTopics = React.useMemo(() => filterHelpTopicsForRole(
     dynamicTopics.length > 0
       ? dynamicTopics.map(backendTopicToHelpTopic)
       : commonHelpTopics,
     session.user.role
-  );
+  ), [dynamicTopics, session.user.role]);
+
+  useEffect(() => {
+    if (initialTopicId && helpTopics.length > 0) {
+      const topic = helpTopics.find((t) => t.id === initialTopicId);
+      if (topic) {
+        setSelectedTopic(topic);
+      }
+      if (onClearInitialTopicId) {
+        onClearInitialTopicId();
+      }
+    }
+  }, [initialTopicId, helpTopics, onClearInitialTopicId]);
   
   const term = search.trim().toLowerCase();
   const filteredTopics = helpTopics.filter((topic) => {
@@ -65,7 +83,7 @@ export function HelpScreen({
   });
 
   const quickButtons: Array<{ label: string; route: TabKey }> = [
-    { label: "My Work", route: "help" as TabKey },
+    { label: "My Work", route: "dashboard" as TabKey },
     { label: "Products", route: "products" as TabKey },
     { label: "Network", route: "network" as TabKey },
     { label: "Payments", route: "payments" as TabKey },
@@ -115,23 +133,21 @@ export function HelpScreen({
               <Text style={styles.helpSubtitle}>Learn how to use your app step by step.</Text>
             </View>
           </View>
-          <View style={styles.helpRoleBadge}>
-            <Text style={styles.helpRoleText}>
-              You are using this app as: {session.user.role.replace("_", " ")}
-            </Text>
-          </View>
+          {session.user.role === "ADMIN" && (
+            <View style={styles.helpRoleBadge}>
+              <Text style={styles.helpRoleText}>
+                You are using this app as: {session.user.role.replace("_", " ")}
+              </Text>
+            </View>
+          )}
         </View>
 
-        <View style={styles.helpSearchBox}>
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search help"
-            placeholderTextColor={colors.slate500}
-            style={styles.helpSearchInput}
-          />
+        <Pressable style={styles.helpSearchBox} onPress={onOpenSearch}>
+          <Text style={[styles.helpSearchInput, { color: colors.slate500, paddingVertical: 12 }]}>
+            Search help, products, payments...
+          </Text>
           <Text style={styles.helpSearchIcon}>?</Text>
-        </View>
+        </Pressable>
 
         <View>
           <Text style={styles.moreSectionTitle}>Quick Help</Text>
@@ -271,7 +287,7 @@ function RoleGuideCard({
           <Text style={styles.roleGuideIconText}>{guide.role.slice(0, 1)}</Text>
         </View>
         <View style={styles.roleGuideTitleWrap}>
-          <Text style={styles.roleGuideTitle}>{guide.title}</Text>
+          <Text style={styles.roleGuideTitle}>{guide.role === "ADMIN" ? guide.title : "My Work Guide"}</Text>
           <Text style={styles.roleGuideMessage}>{guide.message}</Text>
         </View>
       </View>

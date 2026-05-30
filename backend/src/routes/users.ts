@@ -198,6 +198,7 @@ usersRouter.get("/me", requireAuth, async (req, res) => {
       phone: true,
       role: true,
       status: true,
+      profileUnlocked: true,
       referralCode: true
     }
   });
@@ -504,6 +505,7 @@ usersRouter.get("/", requireAuth, requireRoles(Role.ADMIN), async (_req, res) =>
       status: true,
       placementType: true,
       sponsorId: true,
+      profileUnlocked: true,
       createdAt: true
     },
     orderBy: { createdAt: "desc" }

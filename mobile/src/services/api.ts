@@ -12,21 +12,35 @@ export const API_URL = (
 ).replace(/\/+$/, "");
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}) {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers ?? {})
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
+
+  try {
+    const response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers ?? {})
+      }
+    });
+
+    clearTimeout(timeoutId);
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = typeof data?.error === "string" ? data.error : "Request failed";
+      throw new Error(message);
     }
-  });
 
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message = typeof data?.error === "string" ? data.error : "Request failed";
-    throw new Error(message);
+    return data as T;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === "AbortError") {
+      throw new Error("Request timed out. Please check your internet connection and try again.");
+    }
+    throw error;
   }
-
-  return data as T;
 }
 
 export function formatMoney(value: string | number) {
@@ -48,17 +62,23 @@ export function formatDateTime(value?: string | null) {
   return date.toLocaleString();
 }
 
-export function formatRole(role?: string | null): string {
+export function formatRole(role?: string | null, isAdmin?: boolean): string {
   if (!role) return "N/A";
-  if (role === "LEVEL_1") return "Main Pillar";
-  if (role === "LEVEL_2") return "Representative";
-  return role.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  if (isAdmin) {
+    if (role === "LEVEL_1") return "Main Pillar";
+    if (role === "LEVEL_2") return "Downline";
+    return role.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  if (role === "ADMIN") return "Admin";
+  if (role === "CUSTOMER") return "Customer";
+  return "Representative";
 }
 
-export function formatCountAmount(row: CountAmountRow) {
+export function formatCountAmount(row: CountAmountRow, isAdmin?: boolean) {
   let label = row.status ?? row.type ?? row.role ?? "Item";
   if (row.role) {
-    label = formatRole(row.role);
+    label = formatRole(row.role, isAdmin);
   } else {
     label = label.replaceAll("_", " ");
   }
@@ -72,16 +92,16 @@ export function buildReportText(report: AdminReport) {
     `To: ${report.filters.to || "Today"}`,
     "",
     "Users by role",
-    ...report.users.byRole.map(formatCountAmount),
+    ...report.users.byRole.map((row) => formatCountAmount(row, true)),
     "",
     "Orders by status",
-    ...report.orders.byStatus.map(formatCountAmount),
+    ...report.orders.byStatus.map((row) => formatCountAmount(row, true)),
     "",
     "Commissions by status",
-    ...report.commissions.byStatus.map(formatCountAmount),
+    ...report.commissions.byStatus.map((row) => formatCountAmount(row, true)),
     "",
     "Payment handovers",
-    ...report.payments.handoversByStatus.map(formatCountAmount),
+    ...report.payments.handoversByStatus.map((row) => formatCountAmount(row, true)),
     "",
     `Total stock: ${report.stock.totalStock}`,
     `Low stock products: ${report.stock.lowStockCount}`,

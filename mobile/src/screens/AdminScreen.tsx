@@ -49,9 +49,11 @@ import {
   buildReportText,
   mediaUrl,
   confirmAction,
-  formatRole,
+  formatRole as formatRoleBase,
   API_URL
 } from "../services/api";
+
+const formatRole = (role?: string | null) => formatRoleBase(role, true);
 import { colors } from "../constants/theme";
 import {
   Input,
@@ -349,6 +351,26 @@ export function AdminScreen({
 
   function requestSelectedUserPaymentConfirmation(userId: string) {
     confirmAction("Confirm joining payment", "Use this only after money reaches the company. This creates joining commissions.", () => confirmSelectedUserCompanyPayment(userId));
+  }
+
+  async function toggleProfileAccess(userId: string, currentStatus: boolean) {
+    try {
+      setLoading(true);
+      const result = await apiRequest<{ user: AdminUserDetail }>(`/admin/users/${userId}/profile-access`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${session.token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ profileUnlocked: !currentStatus })
+      });
+      setSelectedUser(result.user);
+      Alert.alert("Profile Security", `Profile successfully ${!currentStatus ? "unblocked" : "blocked"}.`);
+    } catch (error) {
+      Alert.alert("Profile Security", error instanceof Error ? error.message : "Could not toggle profile access");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function loadUserDetail(userId: string) {
@@ -971,6 +993,7 @@ export function AdminScreen({
               onResetPasswordChange={setSelectedUserNewPassword}
               onResetPassword={() => requestSelectedUserPasswordReset(selectedUser.id)}
               onConfirmPayment={() => requestSelectedUserPaymentConfirmation(selectedUser.id)}
+              onToggleProfileAccess={toggleProfileAccess}
             />
           ) : null}
           {users.length === 0 ? (
@@ -1935,7 +1958,8 @@ function AdminUserDetailCard({
   resetPassword,
   onResetPasswordChange,
   onResetPassword,
-  onConfirmPayment
+  onConfirmPayment,
+  onToggleProfileAccess
 }: {
   user: AdminUserDetail;
   onClose: () => void;
@@ -1944,6 +1968,7 @@ function AdminUserDetailCard({
   onResetPasswordChange: (value: string) => void;
   onResetPassword: () => void;
   onConfirmPayment: () => void;
+  onToggleProfileAccess?: (userId: string, currentStatus: boolean) => void;
 }) {
   const receivedTotal = (user.commissions ?? []).reduce((sum, commission) => sum + Number(commission.amount), 0);
   const orderTotal = (user.orders ?? []).reduce((sum, order) => sum + Number(order.totalAmount), 0);
@@ -1965,6 +1990,23 @@ function AdminUserDetailCard({
       <Text style={styles.detailLine}>
         Joining payment: {user.companyPaymentConfirmedAt ? "Confirmed" : "Pending"}
       </Text>
+
+      {user.role === "CUSTOMER" ? (
+        <>
+          <Text style={styles.detailSectionTitle}>Profile Security State</Text>
+          <Text style={styles.detailLine}>
+            Profile status: <Text style={{ fontWeight: "bold", color: user.profileUnlocked ? colors.brand600 : colors.danger }}>{user.profileUnlocked ? "Unlocked / Allowed" : "Locked / Restricted"}</Text>
+          </Text>
+          <Pressable
+            style={[styles.adminActionButton, { backgroundColor: user.profileUnlocked ? colors.danger : colors.brand600, marginTop: 8 }]}
+            onPress={() => onToggleProfileAccess && onToggleProfileAccess(user.id, !!user.profileUnlocked)}
+          >
+            <Text style={[styles.adminActionText, { color: colors.white }]}>
+              {user.profileUnlocked ? "Block Profile Access" : "Unblock Profile Access"}
+            </Text>
+          </Pressable>
+        </>
+      ) : null}
 
       {user.role !== "ADMIN" ? (
         <>

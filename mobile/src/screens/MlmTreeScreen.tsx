@@ -519,7 +519,7 @@ function TreeLegend() {
     { label: "Company", style: styles.legendCompany },
     { label: "Manager", style: styles.legendManager },
     { label: "Beta Manager", style: styles.legendBeta },
-    { label: "Main Pillar / Representative", style: styles.legendLevel },
+    { label: "Representative", style: styles.legendLevel },
     { label: "Customer", style: styles.legendCustomer }
   ];
   return (

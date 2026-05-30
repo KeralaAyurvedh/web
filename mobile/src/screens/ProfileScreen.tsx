@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ScrollView, View, Text, StyleSheet, Clipboard, Alert, Pressable, ActivityIndicator, Modal } from "react-native";
+import { ScrollView, View, Text, StyleSheet, Clipboard, Alert, Pressable, ActivityIndicator, Modal, Linking } from "react-native";
 import { Session, User, Role } from "../constants/types";
 import { colors } from "../constants/theme";
 import { SectionHeader, Input, TextArea, OptionList, PrimaryButton } from "../components/UI/FormControls";
@@ -16,6 +16,34 @@ function SystemInfoRow({ label, value }: { label: string; value: string }) {
 
 export function ProfileScreen({ session, onSessionUpdate }: { session: Session; onSessionUpdate?: (session: Session) => void }) {
   const displayRole = formatRole(session.user.role);
+  const isCustomer = session.user.role === "CUSTOMER";
+  const isProfileLocked = isCustomer && !session.user.profileUnlocked;
+
+  if (isProfileLocked) {
+    return (
+      <View style={styles.lockedContainer}>
+        <View style={styles.lockedCard}>
+          <View style={styles.lockedIconCircle}>
+            <Text style={styles.lockedIconText}>🔒</Text>
+          </View>
+          <Text style={styles.lockedTitle}>Profile Restricted</Text>
+          <Text style={styles.lockedMessage}>
+            Profile access is restricted. Please contact Kerala Ayurvedh support to request access.
+          </Text>
+          <Pressable
+            style={styles.requestAccessButton}
+            onPress={() => {
+              Linking.openURL(
+                `mailto:support@keralaayurvedh.com?subject=Profile%20Access%20Request&body=Hello,%0D%0AI%20would%20like%20to%20request%20access%20to%20my%20profile.%0D%0A%0D%0AUser%20Details:%0D%0AName:%20${encodeURIComponent(session.user.name)}%0D%0APhone:%20${session.user.phone}%0D%0AUser%20ID:%20${session.user.id}`
+              );
+            }}
+          >
+            <Text style={styles.requestAccessButtonText}>Request Access</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
   const [refreshing, setRefreshing] = useState(false);
 
   // Upgrade requests states
@@ -100,8 +128,22 @@ export function ProfileScreen({ session, onSessionUpdate }: { session: Session; 
     }
   }
 
+  async function checkProfileUnlockStatus() {
+    try {
+      const res = await apiRequest<{ user: User }>("/users/me", {
+        headers: { Authorization: `Bearer ${session.token}` }
+      });
+      if (onSessionUpdate) {
+        onSessionUpdate({ ...session, user: res.user });
+      }
+    } catch {
+      // Quiet fail
+    }
+  }
+
   useEffect(() => {
     checkRequestStatus();
+    checkProfileUnlockStatus();
   }, [session.user.role]);
 
   return (
@@ -116,12 +158,12 @@ export function ProfileScreen({ session, onSessionUpdate }: { session: Session; 
           <View style={styles.moreProfileText}>
             <Text style={styles.profileName}>{session.user.name}</Text>
             <Text style={styles.profileMeta}>
-              {displayRole} - {session.user.status}
+              {session.user.role === "ADMIN" ? `${displayRole} - ` : ""}{session.user.status}
             </Text>
           </View>
         </View>
         <SystemInfoRow label="Phone" value={session.user.phone} />
-        <SystemInfoRow label="Role" value={displayRole} />
+        {session.user.role === "ADMIN" && <SystemInfoRow label="Role" value={displayRole} />}
         <SystemInfoRow label="Status" value={session.user.status} />
         {session.user.role !== "CUSTOMER" ? (
           <View style={styles.systemInfoRow}>
@@ -194,7 +236,7 @@ export function ProfileScreen({ session, onSessionUpdate }: { session: Session; 
                 
                 <Text style={styles.modalInputLabel}>Select Target Role</Text>
                 <OptionList
-                  items={[{ id: "LEVEL_1" }, { id: "LEVEL_2" }]}
+                  items={[{ id: "LEVEL_2" }]}
                   selectedId={toRole}
                   emptyText="No roles available."
                   onSelect={(val) => setToRole(val as "LEVEL_1" | "LEVEL_2")}
@@ -470,5 +512,70 @@ const styles = StyleSheet.create({
     color: colors.slate500,
     fontSize: 13,
     fontWeight: "700"
+  },
+  lockedContainer: {
+    flex: 1,
+    backgroundColor: colors.slate50,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    minHeight: 400
+  },
+  lockedCard: {
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.brand200,
+    padding: 28,
+    alignItems: "center",
+    shadowColor: colors.slate900,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 4,
+    width: "100%",
+    maxWidth: 340
+  },
+  lockedIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: colors.brand50,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.brand100
+  },
+  lockedIconText: {
+    fontSize: 32
+  },
+  lockedTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: colors.slate900,
+    marginBottom: 10,
+    textAlign: "center"
+  },
+  lockedMessage: {
+    fontSize: 14,
+    color: colors.slate500,
+    lineHeight: 20,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 24
+  },
+  requestAccessButton: {
+    backgroundColor: colors.brand800,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    width: "100%"
+  },
+  requestAccessButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: "900"
   }
 });

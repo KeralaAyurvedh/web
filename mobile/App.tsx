@@ -16,7 +16,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { Role, TabKey, Session } from "./src/constants/types";
+import { Role, TabKey, Session, Product } from "./src/constants/types";
 import { colors } from "./src/constants/theme";
 import {
   canAccessTab,
@@ -40,6 +40,8 @@ import { PaymentsScreen } from "./src/screens/PaymentsScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
 import { SecurityScreen } from "./src/screens/SecurityScreen";
 import { HelpScreen } from "./src/screens/HelpScreen";
+import { CartScreen } from "./src/screens/CartScreen";
+import { MyOrdersScreen } from "./src/screens/MyOrdersScreen";
 
 const logoImage = require("./assets/logo.png");
 
@@ -56,12 +58,14 @@ function Header({
   onMenuPress,
   onSearchPress,
   onCartPress,
-  onLogout
+  onLogout,
+  cartCount
 }: {
   onMenuPress: () => void;
   onSearchPress: () => void;
   onCartPress: () => void;
   onLogout: () => void;
+  cartCount: number;
 }) {
   return (
     <View style={styles.header}>
@@ -85,6 +89,11 @@ function Header({
         <Pressable style={styles.headerCircleButton} onPress={onCartPress}>
           <View style={styles.cartBasket} />
           <View style={styles.cartHandle} />
+          {cartCount > 0 && (
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>{cartCount}</Text>
+            </View>
+          )}
         </Pressable>
         <Pressable style={styles.profileIconButton} onPress={onLogout}>
           <View style={styles.profileHead} />
@@ -112,6 +121,8 @@ function AppMenu({
     { key: "dashboard", label: "Home" },
     ...(role === "ADMIN" ? [{ key: "admin" as TabKey, label: "Company Admin" }] : []),
     { key: "products", label: "Products" },
+    { key: "cart" as TabKey, label: "Shopping Cart" },
+    { key: "my-orders" as TabKey, label: "My Orders" },
     ...(role !== "CUSTOMER" ? [
       { key: "network" as TabKey, label: "Network" },
       { key: "tree" as TabKey, label: "Structure" },
@@ -259,10 +270,36 @@ function FirstTimeGuideModal({
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
+  const [selectedHelpTopicId, setSelectedHelpTopicId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [updateMessage, setUpdateMessage] = useState("");
+
+  // Global Cart State
+  const [cart, setCart] = useState<Array<{ product: Product; quantity: number }>>([]);
+
+  function addToCart(product: Product, quantity: number = 1) {
+    setCart(prev => {
+      const existing = prev.find(item => item.product.id === product.id);
+      if (existing) {
+        return prev.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + quantity } : item);
+      }
+      return [...prev, { product, quantity }];
+    });
+  }
+
+  function removeFromCart(productId: string) {
+    setCart(prev => prev.filter(item => item.product.id !== productId));
+  }
+
+  function updateCartQuantity(productId: string, quantity: number) {
+    setCart(prev => prev.map(item => item.product.id === productId ? { ...item, quantity } : item));
+  }
+
+  function clearCart() {
+    setCart([]);
+  }
 
   // Global search states
   const [searchModalVisible, setSearchModalVisible] = useState(false);
@@ -339,8 +376,13 @@ export default function App() {
     setShowGuide(true);
   }
 
-  function navigate(tab: TabKey) {
+  function navigate(tab: TabKey, params?: { helpTopicId?: string }) {
     setActiveTab(safeDefaultTab(session?.user.role ?? "CUSTOMER", tab));
+    if (params?.helpTopicId) {
+      setSelectedHelpTopicId(params.helpTopicId);
+    } else {
+      setSelectedHelpTopicId(null);
+    }
   }
 
   useEffect(() => {
@@ -408,14 +450,26 @@ export default function App() {
       <Header
         onMenuPress={() => setMenuOpen((open) => !open)}
         onSearchPress={() => setSearchModalVisible(true)}
-        onCartPress={() => navigate("products")}
+        onCartPress={() => navigate("cart")}
         onLogout={() => {
           confirmAction("Logout", "Do you want to logout from this session?", handleLogout);
         }}
+        cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
       />
       <View style={styles.screen}>
         {activeTab === "dashboard" && <DashboardScreen session={session} onNavigate={navigate} />}
-        {activeTab === "products" && <ProductsScreen session={session} onNavigate={navigate} />}
+        {activeTab === "products" && <ProductsScreen session={session} onNavigate={navigate} addToCart={addToCart} />}
+        {activeTab === "cart" && (
+          <CartScreen
+            session={session}
+            cart={cart}
+            updateCartQuantity={updateCartQuantity}
+            removeFromCart={removeFromCart}
+            clearCart={clearCart}
+            onNavigate={navigate}
+          />
+        )}
+        {activeTab === "my-orders" && <MyOrdersScreen session={session} />}
         {activeTab === "network" && <NetworkScreen session={session} />}
         {activeTab === "more" && (
           <MoreScreen
@@ -433,7 +487,14 @@ export default function App() {
         {activeTab === "profile" && <ProfileScreen session={session} onSessionUpdate={setSession} />}
         {activeTab === "security" && <SecurityScreen session={session} onSessionUpdate={setSession} />}
         {activeTab === "help" && (
-          <HelpScreen session={session} onNavigate={navigate} onShowGuide={openGuideAgain} />
+          <HelpScreen
+            session={session}
+            onNavigate={navigate}
+            onShowGuide={openGuideAgain}
+            onOpenSearch={() => setSearchModalVisible(true)}
+            initialTopicId={selectedHelpTopicId}
+            onClearInitialTopicId={() => setSelectedHelpTopicId(null)}
+          />
         )}
       </View>
       <BottomNavigation role={session.user.role} activeTab={activeTab} onChange={navigate} />
@@ -626,6 +687,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
     borderColor: colors.brand800,
     transform: [{ translateY: -10 }]
+  },
+  cartBadge: {
+    position: "absolute",
+    right: -4,
+    top: -4,
+    backgroundColor: colors.danger ?? "#ef4444",
+    borderRadius: 9,
+    width: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  cartBadgeText: {
+    color: colors.white ?? "#ffffff",
+    fontSize: 10,
+    fontWeight: "bold"
   },
   profileIconButton: {
     width: 38,
