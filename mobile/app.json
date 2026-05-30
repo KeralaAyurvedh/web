@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kerala Ayurvedh",
     "slug": "kerala-ayurvedh",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "jsEngine": "hermes",
@@ -11,12 +11,16 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "runtimeVersion": "0.1.1",
+    "updates": {
+      "url": "https://u.expo.dev/0aa153d7-255d-440b-8945-cc87807fe859"
+    },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "package": "com.keralaayurvedh.app",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#0a3314"

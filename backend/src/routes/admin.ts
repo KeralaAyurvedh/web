@@ -2025,3 +2025,31 @@ adminRouter.post("/system/reset-test-data", async (req, res) => {
     return res.status(500).json({ error: error instanceof Error ? error.message : "Reset failed" });
   }
 });
+
+import { getSystemSettings, saveSystemSettings } from "../utils/settings";
+
+adminRouter.post("/app-update-status", async (req, res) => {
+  const parsed = z.object({
+    updateAvailable: z.boolean(),
+    updateMessage: z.string().min(5)
+  }).safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid app update settings", details: parsed.error.flatten() });
+  }
+
+  const settings = getSystemSettings();
+  settings.updateAvailable = parsed.data.updateAvailable;
+  settings.updateMessage = parsed.data.updateMessage;
+
+  saveSystemSettings(settings);
+
+  await writeAuditLog({
+    actorId: req.user!.id,
+    action: "SYSTEM_UPDATE_PROMPTER_TOGGLED",
+    entityType: "System",
+    metadata: { updateAvailable: settings.updateAvailable }
+  }).catch(() => undefined);
+
+  return res.json({ ok: true, settings });
+});

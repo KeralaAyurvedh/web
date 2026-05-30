@@ -51,7 +51,7 @@ export function formatDateTime(value?: string | null) {
 export function formatRole(role?: string | null): string {
   if (!role) return "N/A";
   if (role === "LEVEL_1") return "Main Pillar";
-  if (role === "LEVEL_2") return "Downline";
+  if (role === "LEVEL_2") return "Representative";
   return role.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
@@ -92,7 +92,9 @@ export function buildReportText(report: AdminReport) {
 
 export function mediaUrl(path?: string | null) {
   if (!path) return "";
-  return path.startsWith("http") ? path : `${API_URL}${path}`;
+  if (path.startsWith("http")) return path;
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  return `${API_URL}${cleanPath}`;
 }
 
 export function confirmAction(title: string, message: string, onConfirm: () => void) {

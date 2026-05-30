@@ -299,3 +299,10 @@ authRouter.get("/resolve-referral/:code", rateLimit({ keyPrefix: "resolve-referr
     determinedRole
   });
 });
+
+import { getSystemSettings } from "../utils/settings";
+
+authRouter.get("/app-update-status", async (req, res) => {
+  const settings = getSystemSettings();
+  return res.json(settings);
+});

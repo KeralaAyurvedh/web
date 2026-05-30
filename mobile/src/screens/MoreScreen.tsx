@@ -1,5 +1,6 @@
 import React from "react";
-import { ScrollView, View, Text, Pressable, StyleSheet, Image } from "react-native";
+import { Alert, ScrollView, View, Text, Pressable, StyleSheet, Image } from "react-native";
+import * as Updates from "expo-updates";
 import { Session, TabKey, MoreMenuItem } from "../constants/types";
 import { colors } from "../constants/theme";
 import { canAccessTab } from "../constants/guides";
@@ -16,19 +17,43 @@ export function MoreScreen({
   onNavigate: (tab: TabKey) => void;
   onLogout: () => void;
 }) {
+  async function checkForAppUpdate() {
+    try {
+      if (__DEV__) {
+        Alert.alert("App update", "Updates are checked in the installed app, not in development mode.");
+        return;
+      }
+
+      const update = await Updates.checkForUpdateAsync();
+      if (!update.isAvailable) {
+        Alert.alert("App update", "You are already using the latest available version.");
+        return;
+      }
+
+      await Updates.fetchUpdateAsync();
+      Alert.alert("App update", "Update downloaded. Restart now to apply it?", [
+        { text: "Later", style: "cancel" },
+        { text: "Restart", onPress: () => Updates.reloadAsync() }
+      ]);
+    } catch (error) {
+      Alert.alert("App update", error instanceof Error ? error.message : "Could not check for updates.");
+    }
+  }
+
   const moreMenuItems: MoreMenuItem[] = [
     { key: "admin", title: "Company Admin", description: "Manage users, products, orders, reports and system monitor", icon: "A", adminOnly: true },
-    { key: "tree", title: "Downline", description: "Open the downline structure", icon: "T" },
+    { key: "tree", title: "Structure", description: "Open the representative network structure", icon: "T" },
     { key: "commissions", title: "Earnings", description: "View commission ledger and earning status", icon: "E" },
     { key: "payments", title: "Payments", description: "Record and track money handovers", icon: "P" },
     { key: "help", title: "Help", description: "Learn what to do step by step", icon: "H" },
-    { key: "profile", title: "Profile", description: "View your account, role and referral details", icon: "U" },
+    { key: "profile", title: "Profile", description: "View your account, role and employee details", icon: "U" },
     { key: "security", title: "Security", description: session.user.role === "ADMIN" ? "Change admin login ID and password" : "Change your login password", icon: "S" },
+    { key: "update", title: "Check for app update", description: "Download the latest app changes without reinstalling", icon: "V" },
     { key: "logout", title: "Logout", description: "Sign out from this device", icon: "X", danger: true }
   ];
   
   const menuItems = moreMenuItems.filter((item) => {
-    if (item.key === "logout") return true;
+    if (item.key === "logout" || item.key === "update") return true;
     if (item.adminOnly && session.user.role !== "ADMIN") return false;
     return canAccessTab(session.user.role, item.key);
   });
@@ -43,7 +68,7 @@ export function MoreScreen({
           <Text style={styles.moreName}>{session.user.name}</Text>
           <Text style={styles.moreMeta}>{formatRole(session.user.role)} - {session.user.status}</Text>
           {session.user.role !== "CUSTOMER" ? (
-            <Text style={styles.moreReferral}>Referral: {session.user.referralCode}</Text>
+            <Text style={styles.moreReferral}>Employee ID: {session.user.referralCode}</Text>
           ) : null}
         </View>
       </View>
@@ -54,7 +79,17 @@ export function MoreScreen({
           <Pressable
             key={item.key}
             style={({ pressed }) => [styles.moreMenuItem, pressed && styles.pressed]}
-            onPress={() => (item.key === "logout" ? onLogout() : onNavigate(item.key))}
+            onPress={() => {
+              if (item.key === "logout") {
+                onLogout();
+                return;
+              }
+              if (item.key === "update") {
+                checkForAppUpdate();
+                return;
+              }
+              onNavigate(item.key);
+            }}
           >
             <View style={[styles.moreMenuIcon, item.danger && styles.moreMenuIconDanger]}>
               {item.key === "admin" ? (

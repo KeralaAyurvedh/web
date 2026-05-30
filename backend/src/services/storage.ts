@@ -50,6 +50,10 @@ function encodeRfc3986(value: string) {
   return encodeURIComponent(value).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 
+function encodedStorageKey(key: string) {
+  return key.split("/").map(encodeRfc3986).join("/");
+}
+
 function r2Host() {
   if (!config.storage.bucket) throw new Error("R2_BUCKET is required for R2 storage");
   if (config.storage.endpoint) {
@@ -63,8 +67,8 @@ function r2Host() {
 
 function r2Path(key: string) {
   if (!config.storage.bucket) throw new Error("R2_BUCKET is required for R2 storage");
-  if (!config.storage.endpoint || !config.storage.forcePathStyle) return `/${key.split("/").map(encodeRfc3986).join("/")}`;
-  return `/${config.storage.bucket}/${key.split("/").map(encodeRfc3986).join("/")}`;
+  if (!config.storage.endpoint || !config.storage.forcePathStyle) return `/${encodedStorageKey(key)}`;
+  return `/${config.storage.bucket}/${encodedStorageKey(key)}`;
 }
 
 function r2Url(key: string) {
@@ -84,6 +88,34 @@ function assertR2Config() {
   if (!config.storage.bucket || !config.storage.accessKeyId || !config.storage.secretAccessKey) {
     throw new Error("R2 storage is not fully configured");
   }
+}
+
+function assertSupabaseConfig() {
+  if (!config.storage.supabaseUrl || !config.storage.supabaseServiceRoleKey || !config.storage.supabaseBucket) {
+    throw new Error("Supabase storage is not fully configured");
+  }
+}
+
+function supabaseStorageBaseUrl() {
+  assertSupabaseConfig();
+  return config.storage.supabaseUrl!.replace(/\/$/, "");
+}
+
+function supabaseObjectUrl(key: string) {
+  return `${supabaseStorageBaseUrl()}/storage/v1/object/${encodeRfc3986(config.storage.supabaseBucket!)}/${encodedStorageKey(key)}`;
+}
+
+function supabasePublicUrl(key: string) {
+  return `${supabaseStorageBaseUrl()}/storage/v1/object/public/${encodeRfc3986(config.storage.supabaseBucket!)}/${encodedStorageKey(key)}`;
+}
+
+function supabaseHeaders(extra?: Record<string, string>) {
+  assertSupabaseConfig();
+  return {
+    Authorization: `Bearer ${config.storage.supabaseServiceRoleKey}`,
+    apikey: config.storage.supabaseServiceRoleKey!,
+    ...extra
+  };
 }
 
 function r2Authorization(method: "PUT", key: string, mimeType: string, payload: Buffer) {
@@ -203,6 +235,22 @@ export async function uploadFile(input: UploadInput) {
       : config.storage.publicBaseUrl
         ? `${config.storage.publicBaseUrl.replace(/\/$/, "")}/${key}`
         : r2Url(key);
+  } else if (config.storage.provider === "supabase") {
+    provider = FileAssetStorageProvider.SUPABASE;
+    bucket = config.storage.supabaseBucket;
+    const response = await fetch(supabaseObjectUrl(key), {
+      method: "POST",
+      headers: supabaseHeaders({
+        "Content-Type": input.mimeType,
+        "x-upsert": "false"
+      }),
+      body: input.buffer as unknown as BodyInit
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`Supabase upload failed with status ${response.status}${body ? `: ${body}` : ""}`);
+    }
+    publicUrl = isPrivate ? undefined : supabasePublicUrl(key);
   } else {
     const root = isPrivate ? config.storage.localPrivateUploadDir : config.storage.localUploadDir;
     const relativeKey = key.replace(/^private\//, "").replace(/^public\//, "");
@@ -239,9 +287,31 @@ export async function getSignedViewUrl(fileId: string) {
 
   const expiresSeconds = config.storage.signedUrlExpiresSeconds;
   const expiresAt = new Date(Date.now() + expiresSeconds * 1000).toISOString();
-  const url = file.storageProvider === FileAssetStorageProvider.R2
-    ? presignedR2Url(file.key, expiresSeconds)
-    : localSignedUrl(file.id, expiresSeconds);
+  let url: string;
+  if (file.storageProvider === FileAssetStorageProvider.R2) {
+    url = presignedR2Url(file.key, expiresSeconds);
+  } else if (file.storageProvider === FileAssetStorageProvider.SUPABASE) {
+    assertSupabaseConfig();
+    const response = await fetch(
+      `${supabaseStorageBaseUrl()}/storage/v1/object/sign/${encodeRfc3986(config.storage.supabaseBucket!)}/${encodedStorageKey(file.key)}`,
+      {
+        method: "POST",
+        headers: supabaseHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ expiresIn: expiresSeconds })
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`Supabase signed URL failed with status ${response.status}`);
+    }
+    const body = await response.json() as { signedURL?: string; signedUrl?: string };
+    const signedPath = body.signedURL ?? body.signedUrl;
+    if (!signedPath) {
+      throw new Error("Supabase signed URL was not returned");
+    }
+    url = signedPath.startsWith("http") ? signedPath : `${supabaseStorageBaseUrl()}${signedPath}`;
+  } else {
+    url = localSignedUrl(file.id, expiresSeconds);
+  }
 
   return { file, url, expiresAt };
 }

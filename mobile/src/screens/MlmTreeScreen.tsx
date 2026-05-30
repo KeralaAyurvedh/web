@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   ScrollView,
   View,
@@ -19,6 +19,8 @@ export function MlmTreeScreen({ session }: { session: Session }) {
   const [users, setUsers] = useState<TreePerson[]>([]);
   const [selectedPerson, setSelectedPerson] = useState<TreePerson | null>(null);
   const [zoom, setZoom] = useState(0.65);
+  const initialDistanceRef = useRef<number | null>(null);
+  const initialZoomRef = useRef<number>(0.65);
   const [search, setSearch] = useState("");
   const [matchIndex, setMatchIndex] = useState(0);
   const [roleFilter, setRoleFilter] = useState<Role | "ALL" | "ACTIVE_ONLY">("ALL");
@@ -134,12 +136,50 @@ export function MlmTreeScreen({ session }: { session: Session }) {
     setMatchIndex((current) => (current + direction + searchMatches.length) % searchMatches.length);
   }
 
+  const handleStartShouldSetResponder = (evt: any) => {
+    if (evt.nativeEvent.touches.length === 2) {
+      return true;
+    }
+    return false;
+  };
+
+  const handleMoveShouldSetResponder = (evt: any) => {
+    if (evt.nativeEvent.touches.length === 2) {
+      return true;
+    }
+    return false;
+  };
+
+  const handleResponderMove = (evt: any) => {
+    const touches = evt.nativeEvent.touches;
+    if (touches && touches.length === 2) {
+      const touch1 = touches[0];
+      const touch2 = touches[1];
+      const dx = touch1.pageX - touch2.pageX;
+      const dy = touch1.pageY - touch2.pageY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (initialDistanceRef.current === null) {
+        initialDistanceRef.current = distance;
+        initialZoomRef.current = zoom;
+      } else {
+        const factor = distance / initialDistanceRef.current;
+        const newZoom = Math.min(2.0, Math.max(0.2, initialZoomRef.current * factor));
+        setClampedZoom(newZoom);
+      }
+    }
+  };
+
+  const handleResponderRelease = () => {
+    initialDistanceRef.current = null;
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.treeScreenContent}>
       <View style={styles.treeHeroHeader}>
         <View>
           <Text style={styles.homeSectionKicker}>Business Network</Text>
-          <Text style={styles.treeScreenTitle}>Downline</Text>
+          <Text style={styles.treeScreenTitle}>Representative</Text>
           <Text style={styles.treeScreenSubtitle}>View your business network structure</Text>
         </View>
         <Pressable style={styles.treeRefreshButton} onPress={loadTree}>
@@ -156,13 +196,9 @@ export function MlmTreeScreen({ session }: { session: Session }) {
 
       <View style={styles.treeToolbarCard}>
         <View style={styles.treeToolbarRow}>
-          <Pressable style={styles.treeToolButton} onPress={() => setClampedZoom(zoom - 0.1)}>
-            <Text style={styles.treeToolText}>-</Text>
-          </Pressable>
-          <Text style={styles.treeZoomText}>{Math.round(zoom * 100)}%</Text>
-          <Pressable style={styles.treeToolButton} onPress={() => setClampedZoom(zoom + 0.1)}>
-            <Text style={styles.treeToolText}>+</Text>
-          </Pressable>
+          <View style={[styles.treeToolButton, { width: 60, borderWidth: 0, backgroundColor: "transparent" }]}>
+            <Text style={styles.treeZoomText}>{Math.round(zoom * 100)}%</Text>
+          </View>
           <Pressable style={styles.treeToolButtonWide} onPress={() => setClampedZoom(fitZoom)}>
             <Text style={styles.treeToolText}>Fit</Text>
           </Pressable>
@@ -218,7 +254,13 @@ export function MlmTreeScreen({ session }: { session: Session }) {
       {!loading && !error && enrichedUsers.length === 0 && displayRoot.id !== "COMPANY" ? <EmptyTreeState /> : null}
 
       {!error ? (
-        <View style={styles.treeCanvasFrame}>
+        <View
+          style={styles.treeCanvasFrame}
+          onStartShouldSetResponder={handleStartShouldSetResponder}
+          onMoveShouldSetResponder={handleMoveShouldSetResponder}
+          onResponderMove={handleResponderMove}
+          onResponderRelease={handleResponderRelease}
+        >
           <ScrollView horizontal showsHorizontalScrollIndicator>
             <ScrollView showsVerticalScrollIndicator>
               <View style={[styles.treeScaledCanvas, { width: scaledCanvasWidth, height: scaledCanvasHeight }]}>
@@ -248,7 +290,7 @@ export function MlmTreeScreen({ session }: { session: Session }) {
         </View>
       ) : null}
 
-      <TreeLegend />
+      {session.user.role === "ADMIN" && <TreeLegend />}
       <TreePersonDetailModal
         person={selectedPerson}
         childCount={selectedPerson ? enrichedChildrenBySponsor[selectedPerson.id]?.length ?? 0 : 0}
@@ -477,7 +519,7 @@ function TreeLegend() {
     { label: "Company", style: styles.legendCompany },
     { label: "Manager", style: styles.legendManager },
     { label: "Beta Manager", style: styles.legendBeta },
-    { label: "Main Pillar / Downline", style: styles.legendLevel },
+    { label: "Main Pillar / Representative", style: styles.legendLevel },
     { label: "Customer", style: styles.legendCustomer }
   ];
   return (
@@ -499,7 +541,7 @@ function TreeLoadingState() {
   return (
     <View style={styles.treeStateCard}>
       <ActivityIndicator color={colors.brand700} />
-      <Text style={styles.treeStateTitle}>Loading Downline structure</Text>
+      <Text style={styles.treeStateTitle}>Loading Representative structure</Text>
       <Text style={styles.treeStateText}>Preparing your business network structure.</Text>
     </View>
   );
@@ -517,7 +559,7 @@ function EmptyTreeState() {
 function TreeErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <View style={styles.treeStateCard}>
-      <Text style={styles.errorTitle}>Unable to load Downline structure</Text>
+      <Text style={styles.errorTitle}>Unable to load Representative structure</Text>
       <Text style={styles.treeStateText}>{message}</Text>
       <Pressable style={styles.emptyActionButton} onPress={onRetry}>
         <Text style={styles.emptyActionText}>Retry</Text>

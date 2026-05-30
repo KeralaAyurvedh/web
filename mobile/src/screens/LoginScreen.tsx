@@ -42,7 +42,6 @@ export function LoginScreen({ onLogin }: { onLogin: (session: Session) => void }
   const [sponsorError, setSponsorError] = useState("");
   const [lookupLoading, setLookupLoading] = useState(false);
   const [appAadhaar, setAppAadhaar] = useState("");
-  const [appPan, setAppPan] = useState("");
   const [appPrivacyConsentAccepted, setAppPrivacyConsentAccepted] = useState(false);
   const [statusPhone, setStatusPhone] = useState("");
   const [applicationStatus, setApplicationStatus] = useState<ApplicationStatusResult | null>(null);
@@ -119,12 +118,8 @@ export function LoginScreen({ onLogin }: { onLogin: (session: Session) => void }
       Alert.alert("Validation Error", "A valid 12-digit Aadhaar number is required");
       return;
     }
-    if (!appPan.trim() || appPan.trim().length < 10) {
-      Alert.alert("Validation Error", "A valid 10-character PAN number is required");
-      return;
-    }
     if (!appPrivacyConsentAccepted) {
-      Alert.alert("Privacy consent required", "Please accept the privacy consent before submitting Aadhaar/PAN details.");
+      Alert.alert("Privacy consent required", "Please accept the privacy consent before submitting Aadhaar details.");
       return;
     }
 
@@ -138,7 +133,6 @@ export function LoginScreen({ onLogin }: { onLogin: (session: Session) => void }
           email: appEmail,
           sponsorReferralCode: appReferralCode || undefined,
           aadhaarNumber: appAadhaar || undefined,
-          panNumber: appPan || undefined,
           privacyConsentAccepted: true
         })
       });
@@ -148,7 +142,6 @@ export function LoginScreen({ onLogin }: { onLogin: (session: Session) => void }
       setAppReferralCode("");
       setResolvedSponsor(null);
       setAppAadhaar("");
-      setAppPan("");
       setAppPrivacyConsentAccepted(false);
       setShowApplication(false);
       Alert.alert("Application submitted", "Company Admin will review and create your login.");
@@ -319,8 +312,7 @@ export function LoginScreen({ onLogin }: { onLogin: (session: Session) => void }
                 ) : null}
 
                 <Input label="Aadhaar number" value={appAadhaar} onChangeText={setAppAadhaar} keyboardType="numeric" />
-                <Input label="PAN number" value={appPan} onChangeText={setAppPan} autoCapitalize="characters" />
-                <Text style={styles.mutedText}>Only Aadhaar/PAN number is needed. No document image upload is required.</Text>
+                <Text style={styles.mutedText}>Only Aadhaar number is needed. No document image upload is required.</Text>
                 <Pressable
                   style={styles.privacyConsentRow}
                   onPress={() => setAppPrivacyConsentAccepted((value) => !value)}
@@ -329,7 +321,7 @@ export function LoginScreen({ onLogin }: { onLogin: (session: Session) => void }
                     <Text style={styles.privacyConsentCheck}>{appPrivacyConsentAccepted ? "✓" : ""}</Text>
                   </View>
                   <Text style={styles.privacyConsentText}>
-                    I consent to Kerala Ayurvedh collecting and using Aadhaar/PAN numbers only for identity verification, application review, fraud prevention, and legal compliance. Images are not collected.
+                    I consent to Kerala Ayurvedh collecting and using Aadhaar number only for identity verification, application review, fraud prevention, and legal compliance. Images are not collected.
                   </Text>
                 </Pressable>
                 <PrimaryButton

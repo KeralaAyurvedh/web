@@ -1,9 +1,9 @@
-import React from "react";
-import { ScrollView, View, Text, StyleSheet, Clipboard, Alert, Pressable } from "react-native";
-import { Session } from "../constants/types";
+import React, { useState, useEffect } from "react";
+import { ScrollView, View, Text, StyleSheet, Clipboard, Alert, Pressable, ActivityIndicator, Modal } from "react-native";
+import { Session, User, Role } from "../constants/types";
 import { colors } from "../constants/theme";
-import { SectionHeader } from "../components/UI/FormControls";
-import { formatRole } from "../services/api";
+import { SectionHeader, Input, TextArea, OptionList, PrimaryButton } from "../components/UI/FormControls";
+import { formatRole, apiRequest } from "../services/api";
 
 function SystemInfoRow({ label, value }: { label: string; value: string }) {
   return (
@@ -14,12 +14,100 @@ function SystemInfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function ProfileScreen({ session }: { session: Session }) {
+export function ProfileScreen({ session, onSessionUpdate }: { session: Session; onSessionUpdate?: (session: Session) => void }) {
   const displayRole = formatRole(session.user.role);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Upgrade requests states
+  const [activeRequest, setActiveRequest] = useState<any | null>(null);
+  const [loadingRequest, setLoadingRequest] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [toRole, setToRole] = useState<"LEVEL_1" | "LEVEL_2">("LEVEL_2");
+  const [aadhaar, setAadhaar] = useState("");
+  const [reason, setReason] = useState("");
+  const [privacyConsentAccepted, setPrivacyConsentAccepted] = useState(false);
+  const [submittingUpgrade, setSubmittingUpgrade] = useState(false);
+
+  async function checkRequestStatus() {
+    if (session.user.role !== "CUSTOMER") return;
+    try {
+      setLoadingRequest(true);
+      const res = await apiRequest<{ request: any | null }>("/users/me/upgrade-request", {
+        headers: { Authorization: `Bearer ${session.token}` }
+      });
+      setActiveRequest(res.request);
+    } catch {
+      // Quiet fail
+    } finally {
+      setLoadingRequest(false);
+    }
+  }
+
+  async function refreshProfile() {
+    try {
+      setRefreshing(true);
+      const res = await apiRequest<{ user: User }>("/users/me", {
+        headers: { Authorization: `Bearer ${session.token}` }
+      });
+      if (onSessionUpdate) {
+        onSessionUpdate({ ...session, user: res.user });
+      }
+      Alert.alert("Refreshed", "Your profile details have been updated.");
+    } catch (error) {
+      Alert.alert("Error", error instanceof Error ? error.message : "Could not refresh profile");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function handleUpgradeSubmit() {
+    if (!aadhaar || aadhaar.length !== 12 || /\D/.test(aadhaar)) {
+      Alert.alert("Error", "Please enter a valid 12-digit Aadhaar number");
+      return;
+    }
+    if (!reason || reason.trim().length < 5) {
+      Alert.alert("Error", "Please tell us why you want to become a partner (min 5 characters)");
+      return;
+    }
+    if (!privacyConsentAccepted) {
+      Alert.alert("Privacy consent required", "Please accept the privacy consent before submitting Aadhaar details.");
+      return;
+    }
+
+    try {
+      setSubmittingUpgrade(true);
+      const res = await apiRequest<{ request: any }>("/users/me/upgrade-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.token}`
+        },
+        body: JSON.stringify({
+          toRole,
+          aadhaarNumber: aadhaar,
+          reason,
+          privacyConsentAccepted: true
+        })
+      });
+      Alert.alert("Success", "Your request to become an agent was submitted! Admin will review it shortly.");
+      setActiveRequest(res.request);
+      setPrivacyConsentAccepted(false);
+      setShowUpgradeModal(false);
+    } catch (err) {
+      Alert.alert("Failed", err instanceof Error ? err.message : "Could not submit request");
+    } finally {
+      setSubmittingUpgrade(false);
+    }
+  }
+
+  useEffect(() => {
+    checkRequestStatus();
+  }, [session.user.role]);
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <SectionHeader title="Profile" />
+      <SectionHeader title="Profile" action={refreshing ? "Refreshing..." : "Refresh"} onAction={refreshProfile} />
+      
       <View style={styles.card}>
         <View style={styles.moreProfileCardCompact}>
           <View style={styles.moreAvatar}>
@@ -37,13 +125,13 @@ export function ProfileScreen({ session }: { session: Session }) {
         <SystemInfoRow label="Status" value={session.user.status} />
         {session.user.role !== "CUSTOMER" ? (
           <View style={styles.systemInfoRow}>
-            <Text style={styles.systemInfoLabel}>Referral code</Text>
+            <Text style={styles.systemInfoLabel}>Employee ID</Text>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Text style={styles.systemInfoValue}>{session.user.referralCode}</Text>
               <Pressable
                 onPress={() => {
                   Clipboard.setString(session.user.referralCode);
-                  Alert.alert("Copied", "Referral code copied to clipboard!");
+                  Alert.alert("Copied", "Employee ID copied to clipboard!");
                 }}
                 style={({ pressed }) => [
                   styles.copyButton,
@@ -56,6 +144,92 @@ export function ProfileScreen({ session }: { session: Session }) {
           </View>
         ) : null}
       </View>
+
+      {/* Become a Partner Section */}
+      {session.user.role === "CUSTOMER" && (
+        <View style={styles.upgradeCard}>
+          <Text style={styles.upgradeTitle}>Become a Kerala Ayurvedh Partner</Text>
+          <Text style={styles.upgradeText}>
+            Earn direct referral commissions of up to ₹1,000 per order, passives of ₹500, build your representative network, and unlock high-paying wellness rewards by promoting our weight loss powders!
+          </Text>
+
+          {loadingRequest ? (
+            <ActivityIndicator color={colors.brand600} style={{ marginVertical: 10 }} />
+          ) : activeRequest && activeRequest.status === "PENDING" ? (
+            <View style={styles.pendingContainer}>
+              <View style={styles.pendingBadge}>
+                <Text style={styles.pendingBadgeText}>UNDER REVIEW</Text>
+              </View>
+              <Text style={styles.pendingText}>
+                Your request is under review. Please wait for admin approval.
+              </Text>
+            </View>
+          ) : activeRequest && activeRequest.status === "REJECTED" ? (
+            <View style={styles.rejectedContainer}>
+              <View style={styles.rejectedBadge}>
+                <Text style={styles.rejectedBadgeText}>DENIED</Text>
+              </View>
+              <Text style={styles.rejectedText}>
+                Your previous application was denied. Feel free to update your details and re-apply.
+              </Text>
+              <Pressable style={styles.upgradeActionBtn} onPress={() => setShowUpgradeModal(true)}>
+                <Text style={styles.upgradeActionBtnText}>Re-apply for Partner Status</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable style={styles.upgradeActionBtn} onPress={() => setShowUpgradeModal(true)}>
+              <Text style={styles.upgradeActionBtnText}>Apply for Partner Status</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+
+      {/* Upgrade Modal */}
+      {showUpgradeModal && (
+        <Modal visible={showUpgradeModal} transparent animationType="slide" onRequestClose={() => setShowUpgradeModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <ScrollView contentContainerStyle={styles.modalScroll} keyboardShouldPersistTaps="handled">
+                <Text style={styles.modalTitle}>Partner Application</Text>
+                
+                <Text style={styles.modalInputLabel}>Select Target Role</Text>
+                <OptionList
+                  items={[{ id: "LEVEL_1" }, { id: "LEVEL_2" }]}
+                  selectedId={toRole}
+                  emptyText="No roles available."
+                  onSelect={(val) => setToRole(val as "LEVEL_1" | "LEVEL_2")}
+                  renderLabel={(item) => formatRole(item.id)}
+                />
+
+                <Input label="Aadhaar Number (12 digits)" value={aadhaar} onChangeText={setAadhaar} keyboardType="numeric" maxLength={12} />
+                <TextArea label="Message to Administrator" value={reason} onChangeText={setReason} />
+                
+                <Pressable
+                  style={styles.privacyConsentRow}
+                  onPress={() => setPrivacyConsentAccepted((value) => !value)}
+                >
+                  <View style={[styles.privacyConsentBox, privacyConsentAccepted && styles.privacyConsentBoxChecked]}>
+                    <Text style={styles.privacyConsentCheck}>{privacyConsentAccepted ? "✓" : ""}</Text>
+                  </View>
+                  <Text style={styles.privacyConsentText}>
+                    I consent to Kerala Ayurvedh collecting and using my Aadhaar number only for identity verification, application review, fraud prevention, and legal compliance. Images are not collected.
+                  </Text>
+                </Pressable>
+                
+                <Text style={styles.modalHelpText}>
+                  By submitting this application, you agree to fulfill the MLM network guidelines and confirm that all details are accurate.
+                </Text>
+
+                <PrimaryButton label="Submit Request" onPress={handleUpgradeSubmit} loading={submittingUpgrade} />
+                
+                <Pressable style={styles.modalCloseBtn} onPress={() => setShowUpgradeModal(false)}>
+                  <Text style={styles.modalCloseBtnText}>Cancel</Text>
+                </Pressable>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      )}
     </ScrollView>
   );
 }
@@ -138,5 +312,163 @@ const styles = StyleSheet.create({
     color: colors.brand800,
     fontSize: 10,
     fontWeight: "900"
+  },
+  upgradeCard: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.brand200,
+    padding: 18,
+    marginTop: 6
+  },
+  upgradeTitle: {
+    color: colors.brand900,
+    fontSize: 16,
+    fontWeight: "900",
+    marginBottom: 6
+  },
+  upgradeText: {
+    color: colors.slate500,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "700",
+    marginBottom: 14
+  },
+  upgradeActionBtn: {
+    backgroundColor: colors.brand800,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center"
+  },
+  upgradeActionBtnText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  pendingContainer: {
+    backgroundColor: colors.slate50,
+    borderRadius: 8,
+    padding: 12,
+    alignItems: "center"
+  },
+  pendingBadge: {
+    backgroundColor: colors.brand100,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginBottom: 6
+  },
+  pendingBadgeText: {
+    color: colors.brand800,
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  pendingText: {
+    color: colors.slate700,
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "center"
+  },
+  rejectedContainer: {
+    backgroundColor: "#fff1f0",
+    borderRadius: 8,
+    padding: 12,
+    alignItems: "center",
+    gap: 8
+  },
+  rejectedBadge: {
+    backgroundColor: "#fff1f0",
+    borderColor: "#ffccc7",
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4
+  },
+  rejectedBadgeText: {
+    color: colors.danger,
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  rejectedText: {
+    color: colors.slate700,
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "center"
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.6)",
+    justifyContent: "flex-end"
+  },
+  modalContent: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "85%",
+    padding: 16
+  },
+  modalScroll: {
+    paddingBottom: 30,
+    gap: 12
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: colors.slate900,
+    marginBottom: 10
+  },
+  modalInputLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.slate500,
+    marginBottom: 4
+  },
+  privacyConsentRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginVertical: 10
+  },
+  privacyConsentBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: colors.slate200,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.white
+  },
+  privacyConsentBoxChecked: {
+    borderColor: colors.brand600,
+    backgroundColor: colors.brand50
+  },
+  privacyConsentCheck: {
+    color: colors.brand800,
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  privacyConsentText: {
+    flex: 1,
+    fontSize: 11,
+    color: colors.slate500,
+    lineHeight: 15,
+    fontWeight: "700"
+  },
+  modalHelpText: {
+    fontSize: 11,
+    color: colors.slate500,
+    lineHeight: 15,
+    fontWeight: "600",
+    marginBottom: 10
+  },
+  modalCloseBtn: {
+    paddingVertical: 12,
+    alignItems: "center"
+  },
+  modalCloseBtnText: {
+    color: colors.slate500,
+    fontSize: 13,
+    fontWeight: "700"
   }
 });

@@ -16,8 +16,8 @@ const applicationSchema = z.object({
   aadhaarNumber: z.string().regex(/^\d{12}$/, "A valid 12-digit Aadhaar number is required"),
   panNumber: z.preprocess(
     (value) => typeof value === "string" ? value.trim().toUpperCase() : value,
-    z.string().regex(/^[A-Z]{5}\d{4}[A-Z]$/, "A valid 10-character PAN number is required")
-  ),
+    z.string().optional()
+  ).optional(),
   privacyConsentAccepted: z.literal(true, {
     error: "Privacy consent is required before submitting Aadhaar/PAN details"
   })

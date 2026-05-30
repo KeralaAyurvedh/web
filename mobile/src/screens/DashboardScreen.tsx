@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
   useWindowDimensions,
   Alert,
-  StyleSheet
+  StyleSheet,
+  Modal
 } from "react-native";
 import {
   Session,
@@ -127,10 +128,6 @@ export function DashboardScreen({ session, onNavigate }: { session: Session; onN
 
       <RoleDashboardSummary role={session.user.role} stats={roleDashboard} loading={loadingDashboard} onNavigate={onNavigate} />
 
-      {session.user.role === "CUSTOMER" && (
-        <CustomerUpgradeCard session={session} />
-      )}
-
       <View style={styles.searchRow}>
         <TextInput
           value={search}
@@ -157,7 +154,14 @@ export function DashboardScreen({ session, onNavigate }: { session: Session; onN
       />
 
       <SectionHeader title="Featured Products" action={loadingProducts ? "Loading" : "Refresh"} onAction={loadProducts} />
-      {selectedProduct ? <ProductDetailCard product={selectedProduct} onClose={() => setSelectedProduct(null)} /> : null}
+      {selectedProduct ? (
+        <ProductDetailCard
+          product={selectedProduct}
+          session={session}
+          onNavigate={onNavigate}
+          onClose={() => setSelectedProduct(null)}
+        />
+      ) : null}
       {productError ? <ErrorState message={productError} onRetry={loadProducts} /> : null}
       {loadingProducts && products.length === 0 ? (
         <ProductLoadingGrid />
@@ -222,7 +226,7 @@ function RoleDashboardSummary({ role, stats, loading, onNavigate }: { role: Role
 
     if (role === "MANAGER" || role === "BETA_MANAGER") {
       return [
-        { label: "Downline", value: String(stats.activeDirectDownline) },
+        { label: "Team", value: String(stats.activeDirectDownline) },
         { label: "Matrix", value: stats.matrix ? `${stats.matrix.confirmedCustomers}/${stats.matrix.requiredCustomers}` : "Not started" },
         { label: "Earnings", value: formatMoney(stats.approvedCommissionTotal) }
       ];
@@ -230,7 +234,7 @@ function RoleDashboardSummary({ role, stats, loading, onNavigate }: { role: Role
 
     if (role === "LEVEL_1" || role === "LEVEL_2") {
       return [
-        { label: "Downline", value: String(stats.activeDirectDownline) },
+        { label: "Team", value: String(stats.activeDirectDownline) },
         { label: "Payments", value: String(stats.pendingHandovers) },
         { label: "Earnings", value: formatMoney(stats.approvedCommissionTotal) }
       ];
@@ -268,13 +272,13 @@ function RoleDashboardSummary({ role, stats, loading, onNavigate }: { role: Role
       ],
       actions: [
         { label: "Add Main Pillar", tab: "network" },
-        { label: "Downline", tab: "tree" },
+        { label: "Structure", tab: "tree" },
         { label: "Earnings", tab: "commissions" }
       ]
     },
     BETA_MANAGER: {
       title: "Beta Manager dashboard",
-      text: "Build your matrix through Main Pillar and Downline members. Track confirmed customer progress.",
+      text: "Build your matrix through Main Pillar and Representative members. Track confirmed customer progress.",
       metrics: [
         { label: "Main Pillar Agents", value: "Recruit" },
         { label: "Target", value: "216" },
@@ -282,26 +286,26 @@ function RoleDashboardSummary({ role, stats, loading, onNavigate }: { role: Role
       ],
       actions: [
         { label: "Add Main Pillar", tab: "network" },
-        { label: "Downline", tab: "tree" },
+        { label: "Structure", tab: "tree" },
         { label: "Earnings", tab: "commissions" }
       ]
     },
     LEVEL_1: {
       title: "Main Pillar Advisor dashboard",
-      text: "Expand your advisory team by recruiting Downline agents and coordinating manual payments.",
+      text: "Expand your advisory team by recruiting Representative agents and coordinating manual payments.",
       metrics: [
-        { label: "Downline Recruit", value: "Direct" },
+        { label: "Recruit", value: "Direct" },
         { label: "Handovers", value: "Process" },
         { label: "Passives", value: "500" }
       ],
       actions: [
-        { label: "Add Downline", tab: "network" },
-        { label: "Downline", tab: "tree" },
+        { label: "Add Agent", tab: "network" },
+        { label: "Structure", tab: "tree" },
         { label: "Earnings", tab: "commissions" }
       ]
     },
     LEVEL_2: {
-      title: "Downline Representative",
+      title: "Representative",
       text: "Onboard new Customers, record product orders, collect cash/UPI, and submit handovers.",
       metrics: [
         { label: "Customers", value: "Sell" },
@@ -551,7 +555,54 @@ function CategoryRail({
   );
 }
 
-function ProductDetailCard({ product, onClose }: { product: Product; onClose: () => void }) {
+function ProductDetailCard({
+  product,
+  session,
+  onNavigate,
+  onClose
+}: {
+  product: Product;
+  session: Session;
+  onNavigate: (tab: TabKey) => void;
+  onClose: () => void;
+}) {
+  const [quantity, setQuantity] = useState(1);
+  const [showSummary, setShowSummary] = useState(false);
+  const [placingOrder, setPlacingOrder] = useState(false);
+
+  const isCustomer = session.user.role === "CUSTOMER";
+  const isAvailable = product.availability === "AVAILABLE";
+  const hasStock = typeof product.stock === "number" ? product.stock > 0 : true;
+
+  const orderTotal = Number(product.price) * quantity;
+
+  async function handleProceedToPayment() {
+    try {
+      setPlacingOrder(true);
+      await apiRequest<{ order: any }>("/orders", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.token}` },
+        body: JSON.stringify({
+          customerId: session.user.id,
+          items: [
+            {
+              productId: product.id,
+              quantity: quantity
+            }
+          ]
+        })
+      });
+      setShowSummary(false);
+      onClose();
+      Alert.alert("Order Placed Successfully", "Please proceed to make payment for your order.");
+      onNavigate("payments");
+    } catch (error) {
+      Alert.alert("Order Placement Failed", error instanceof Error ? error.message : "Could not create order");
+    } finally {
+      setPlacingOrder(false);
+    }
+  }
+
   return (
     <View style={styles.productDetailCard}>
       <View style={styles.productDetailHeader}>
@@ -578,6 +629,94 @@ function ProductDetailCard({ product, onClose }: { product: Product; onClose: ()
       <Text style={styles.detailText}>{product.usageInstructions || "Usage instructions will be added by Admin."}</Text>
       <Text style={styles.detailSectionTitle}>Benefits</Text>
       <Text style={styles.detailText}>{product.benefits || "Benefits will be added by Admin."}</Text>
+
+      {isCustomer && (
+        <View style={styles.checkoutContainer}>
+          {isAvailable && hasStock ? (
+            <>
+              <View style={styles.quantityRow}>
+                <Text style={styles.quantityLabel}>Quantity</Text>
+                <View style={styles.quantityPicker}>
+                  <Pressable
+                    style={styles.quantityBtn}
+                    onPress={() => setQuantity((q) => Math.max(1, q - 1))}
+                  >
+                    <Text style={styles.quantityBtnText}>-</Text>
+                  </Pressable>
+                  <Text style={styles.quantityText}>{quantity}</Text>
+                  <Pressable
+                    style={styles.quantityBtn}
+                    onPress={() => setQuantity((q) => Math.min(typeof product.stock === "number" ? product.stock : 99, q + 1))}
+                  >
+                    <Text style={styles.quantityBtnText}>+</Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              <Pressable
+                style={styles.buyNowBtn}
+                onPress={() => setShowSummary(true)}
+              >
+                <Text style={styles.buyNowBtnText}>Buy Now — {formatMoney(orderTotal)}</Text>
+              </Pressable>
+            </>
+          ) : (
+            <Text style={[styles.availabilityText, { color: colors.danger, textAlign: "center", marginVertical: 10 }]}>
+              {!isAvailable ? "Coming Soon / Unavailable" : "Out of Stock"}
+            </Text>
+          )}
+        </View>
+      )}
+
+      <Modal visible={showSummary} transparent={true} animationType="fade" onRequestClose={() => setShowSummary(false)}>
+        <View style={styles.summaryOverlay}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryCardTitle}>Order Summary</Text>
+
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryRowLabel}>Product</Text>
+              <Text style={styles.summaryRowVal}>{product.name}</Text>
+            </View>
+
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryRowLabel}>Quantity</Text>
+              <Text style={styles.summaryRowVal}>{quantity}</Text>
+            </View>
+
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryRowLabel}>Price</Text>
+              <Text style={styles.summaryRowVal}>{formatMoney(product.price)} / unit</Text>
+            </View>
+
+            <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: colors.slate100, marginTop: 8, paddingTop: 8 }]}>
+              <Text style={[styles.summaryRowLabel, { color: colors.slate900 }]}>Total Amount</Text>
+              <Text style={[styles.summaryRowVal, { color: colors.brand600, fontSize: 16 }]}>{formatMoney(orderTotal)}</Text>
+            </View>
+
+            <View style={styles.summaryActionsRow}>
+              <Pressable
+                style={styles.summaryCancelBtn}
+                onPress={() => setShowSummary(false)}
+                disabled={placingOrder}
+              >
+                <Text style={styles.summaryCancelBtnText}>Cancel</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.summaryConfirmBtn}
+                onPress={handleProceedToPayment}
+                disabled={placingOrder}
+              >
+                {placingOrder ? (
+                  <ActivityIndicator color={colors.white} size="small" />
+                ) : (
+                  <Text style={styles.summaryConfirmBtnText}>Confirm Order</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -593,160 +732,7 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
   );
 }
 
-function CustomerUpgradeCard({ session }: { session: Session }) {
-  const [activeRequest, setActiveRequest] = useState<any | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [showModal, setShowModal] = useState(false);
 
-  // Form states
-  const [toRole, setToRole] = useState<"LEVEL_1" | "LEVEL_2">("LEVEL_2");
-  const [aadhaar, setAadhaar] = useState("");
-  const [pan, setPan] = useState("");
-  const [reason, setReason] = useState("");
-  const [privacyConsentAccepted, setPrivacyConsentAccepted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  async function checkRequestStatus() {
-    try {
-      setLoading(true);
-      const res = await apiRequest<{ request: any | null }>("/users/me/upgrade-request", {
-        headers: { Authorization: `Bearer ${session.token}` }
-      });
-      setActiveRequest(res.request);
-    } catch {
-      // Ignore silent fail
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    checkRequestStatus();
-  }, []);
-
-  async function handleSubmit() {
-    if (!aadhaar || aadhaar.length < 4) {
-      Alert.alert("Error", "Please enter a valid Aadhaar number");
-      return;
-    }
-    if (!pan || pan.length < 4) {
-      Alert.alert("Error", "Please enter a valid PAN number");
-      return;
-    }
-    if (!reason || reason.trim().length < 5) {
-      Alert.alert("Error", "Please tell us why you want to become a partner (min 5 characters)");
-      return;
-    }
-    if (!privacyConsentAccepted) {
-      Alert.alert("Privacy consent required", "Please accept the privacy consent before submitting Aadhaar/PAN details.");
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      const res = await apiRequest<{ request: any }>("/users/me/upgrade-request", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.token}`
-        },
-        body: JSON.stringify({
-          toRole,
-          aadhaarNumber: aadhaar,
-          panNumber: pan,
-          reason,
-          privacyConsentAccepted: true
-        })
-      });
-      Alert.alert("Success", "Your request to become an agent was submitted! Admin will review it shortly.");
-      setActiveRequest(res.request);
-      setPrivacyConsentAccepted(false);
-      setShowModal(false);
-    } catch (err) {
-      Alert.alert("Failed", err instanceof Error ? err.message : "Could not submit request");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  if (loading) {
-    return (
-      <View style={styles.upgradeCard}>
-        <ActivityIndicator color={colors.brand600} />
-      </View>
-    );
-  }
-
-  if (activeRequest && activeRequest.status === "PENDING") {
-    return (
-      <View style={[styles.upgradeCard, styles.upgradeCardPending]}>
-        <Text style={styles.upgradeTitle}>Partner Application Pending</Text>
-        <Text style={styles.upgradeText}>
-          You requested to upgrade to <Text style={styles.highlightRole}>{formatRole(activeRequest.toRole)}</Text>. Our team is currently reviewing your identity documents and network history.
-        </Text>
-        <View style={styles.pendingBadge}>
-          <Text style={styles.pendingBadgeText}>UNDER REVIEW</Text>
-        </View>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.upgradeCard}>
-      <Text style={styles.upgradeTitle}>Become a Kerala Ayurvedh Partner</Text>
-      <Text style={styles.upgradeText}>
-        Earn direct referral commissions of up to ₹1,000 per order, passives of ₹500, build your downline, and unlock high-paying wellness rewards by promoting our weight loss powders!
-      </Text>
-      <Pressable style={styles.upgradeActionBtn} onPress={() => setShowModal(true)}>
-        <Text style={styles.upgradeActionBtnText}>Apply for Partner Status</Text>
-      </Pressable>
-
-      {showModal && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <ScrollView contentContainerStyle={styles.modalScroll} keyboardShouldPersistTaps="handled">
-              <Text style={styles.modalTitle}>Partner Application</Text>
-              
-              <Text style={styles.modalInputLabel}>Select Target Role</Text>
-              <OptionList
-                items={[{ id: "LEVEL_1" }, { id: "LEVEL_2" }]}
-                selectedId={toRole}
-                emptyText="No roles available."
-                onSelect={(val) => setToRole(val as "LEVEL_1" | "LEVEL_2")}
-                renderLabel={(item) => formatRole(item.id)}
-              />
-
-              <Input label="Aadhaar Number" value={aadhaar} onChangeText={setAadhaar} keyboardType="numeric" />
-              <Input label="PAN Number" value={pan} onChangeText={setPan} autoCapitalize="characters" />
-              <TextArea label="Message to Administrator" value={reason} onChangeText={setReason} />
-              <Pressable
-                style={styles.privacyConsentRow}
-                onPress={() => setPrivacyConsentAccepted((value) => !value)}
-              >
-                <View style={[styles.privacyConsentBox, privacyConsentAccepted && styles.privacyConsentBoxChecked]}>
-                  <Text style={styles.privacyConsentCheck}>{privacyConsentAccepted ? "✓" : ""}</Text>
-                </View>
-                <Text style={styles.privacyConsentText}>
-                  I consent to Kerala Ayurvedh collecting and using my Aadhaar/PAN numbers only for identity verification, application review, fraud prevention, and legal compliance. Images are not collected.
-                </Text>
-              </Pressable>
-              
-              <Text style={styles.modalHelpText}>
-                By submitting this application, you agree to fulfill the MLM network guidelines and confirm that all details are accurate.
-              </Text>
-
-              <PrimaryButton label="Submit Request" onPress={handleSubmit} loading={submitting} />
-              
-              <Pressable style={styles.modalCloseBtn} onPress={() => setShowModal(false)}>
-                <Text style={styles.modalCloseBtnText}>Cancel</Text>
-              </Pressable>
-            </ScrollView>
-          </View>
-        </View>
-      )}
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   homeContent: {
@@ -1573,5 +1559,138 @@ const styles = StyleSheet.create({
     color: colors.slate500,
     fontSize: 14,
     fontWeight: "600"
+  },
+  checkoutContainer: {
+    backgroundColor: colors.slate50,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    padding: 14,
+    marginTop: 16
+  },
+  quantityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginVertical: 10
+  },
+  quantityLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.slate700
+  },
+  quantityPicker: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12
+  },
+  quantityBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.brand50,
+    borderWidth: 1,
+    borderColor: colors.brand100,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  quantityBtnText: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: colors.brand800
+  },
+  quantityText: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: colors.slate900,
+    minWidth: 20,
+    textAlign: "center"
+  },
+  buyNowBtn: {
+    backgroundColor: colors.brand700,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 8
+  },
+  buyNowBtnText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  summaryOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20
+  },
+  summaryCard: {
+    width: "100%",
+    maxWidth: 380,
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 18,
+    shadowColor: colors.slate900,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 18,
+    elevation: 8
+  },
+  summaryCardTitle: {
+    fontSize: 17,
+    fontWeight: "900",
+    color: colors.slate900,
+    marginBottom: 14,
+    textAlign: "center"
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 6
+  },
+  summaryRowLabel: {
+    fontSize: 13,
+    color: colors.slate500,
+    fontWeight: "700"
+  },
+  summaryRowVal: {
+    fontSize: 13,
+    color: colors.slate900,
+    fontWeight: "800",
+    textAlign: "right"
+  },
+  summaryActionsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
+    marginTop: 16
+  },
+  summaryCancelBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    alignItems: "center",
+    backgroundColor: colors.slate50
+  },
+  summaryCancelBtnText: {
+    color: colors.slate500,
+    fontSize: 13,
+    fontWeight: "700"
+  },
+  summaryConfirmBtn: {
+    flex: 1.5,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: colors.brand800,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  summaryConfirmBtnText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: "900"
   }
 });

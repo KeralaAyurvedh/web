@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   ScrollView,
   View,
@@ -7,9 +7,12 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  Modal,
   StyleSheet
 } from "react-native";
-import { Session, Product, User, StockAdjustment, ProductAvailability } from "../constants/types";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
+import { Session, Product, User, StockAdjustment, ProductAvailability, Order, TabKey } from "../constants/types";
 import { apiRequest, formatMoney, mediaUrl, confirmAction } from "../services/api";
 import { colors } from "../constants/theme";
 import {
@@ -27,7 +30,15 @@ import {
 
 const logoImage = require("../../assets/logo.png");
 
-export function ProductsScreen({ session }: { session: Session }) {
+type SelectedProductImage = {
+  uri: string;
+  name: string;
+  mimeType: "image/jpeg" | "image/png" | "image/webp";
+  size?: number;
+};
+
+export function ProductsScreen({ session, onNavigate }: { session: Session; onNavigate?: (tab: TabKey) => void }) {
+  const scrollRef = useRef<ScrollView>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [stockAdjustments, setStockAdjustments] = useState<StockAdjustment[]>([]);
@@ -45,6 +56,7 @@ export function ProductsScreen({ session }: { session: Session }) {
   const [productPrice, setProductPrice] = useState("");
   const [productStock, setProductStock] = useState("0");
   const [productAvailability, setProductAvailability] = useState<ProductAvailability>("AVAILABLE");
+  const [selectedProductImage, setSelectedProductImage] = useState<SelectedProductImage | null>(null);
   const [stockProductId, setStockProductId] = useState("");
   const [stockAdjustmentType, setStockAdjustmentType] = useState<StockAdjustment["type"]>("ADD");
   const [stockAdjustmentQuantity, setStockAdjustmentQuantity] = useState("1");
@@ -54,6 +66,7 @@ export function ProductsScreen({ session }: { session: Session }) {
   const [orderQuantity, setOrderQuantity] = useState("1");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
 
   const orderProduct = products.find((product) => product.id === orderProductId);
   const orderTotal = orderProduct ? Number(orderProduct.price) * Number(orderQuantity || 0) : 0;
@@ -79,22 +92,35 @@ export function ProductsScreen({ session }: { session: Session }) {
   async function loadOrderOptions() {
     try {
       setLoading(true);
-      const [productResult, userResult, adjustmentResult] = await Promise.all([
-        apiRequest<{ products: Product[] }>("/products", {
-          headers: { Authorization: `Bearer ${session.token}` }
-        }),
-        apiRequest<{ users: User[] }>("/users/options", {
-          headers: { Authorization: `Bearer ${session.token}` }
-        }),
-        session.user.role === "ADMIN"
-          ? apiRequest<{ adjustments: StockAdjustment[] }>("/admin/stock-adjustments", {
-              headers: { Authorization: `Bearer ${session.token}` }
-            })
-          : Promise.resolve({ adjustments: [] })
-      ]);
-      setProducts(productResult.products);
-      setUsers(userResult.users);
-      setStockAdjustments(adjustmentResult.adjustments);
+      if (session.user.role === "CUSTOMER") {
+        const [productResult, orderResult] = await Promise.all([
+          apiRequest<{ products: Product[] }>("/products", {
+            headers: { Authorization: `Bearer ${session.token}` }
+          }),
+          apiRequest<{ orders: Order[] }>("/orders", {
+            headers: { Authorization: `Bearer ${session.token}` }
+          })
+        ]);
+        setProducts(productResult.products);
+        setCustomerOrders(orderResult.orders);
+      } else {
+        const [productResult, userResult, adjustmentResult] = await Promise.all([
+          apiRequest<{ products: Product[] }>("/products", {
+            headers: { Authorization: `Bearer ${session.token}` }
+          }),
+          apiRequest<{ users: User[] }>("/users/options", {
+            headers: { Authorization: `Bearer ${session.token}` }
+          }),
+          session.user.role === "ADMIN"
+            ? apiRequest<{ adjustments: StockAdjustment[] }>("/admin/stock-adjustments", {
+                headers: { Authorization: `Bearer ${session.token}` }
+              })
+            : Promise.resolve({ adjustments: [] })
+        ]);
+        setProducts(productResult.products);
+        setUsers(userResult.users);
+        setStockAdjustments(adjustmentResult.adjustments);
+      }
     } catch (error) {
       Alert.alert("Options", error instanceof Error ? error.message : "Could not load options");
     } finally {
@@ -105,7 +131,7 @@ export function ProductsScreen({ session }: { session: Session }) {
   async function createProduct() {
     try {
       setLoading(true);
-      await apiRequest<{ product: Product }>("/products", {
+      const result = await apiRequest<{ product: Product }>("/products", {
         method: "POST",
         headers: { Authorization: `Bearer ${session.token}` },
         body: JSON.stringify({
@@ -123,6 +149,9 @@ export function ProductsScreen({ session }: { session: Session }) {
           availability: productAvailability
         })
       });
+      if (selectedProductImage) {
+        await uploadProductImage(result.product.id, selectedProductImage);
+      }
       resetProductForm();
       await loadProducts();
       Alert.alert("Product created", "The product is now visible in the catalog.");
@@ -159,6 +188,9 @@ export function ProductsScreen({ session }: { session: Session }) {
           availability: productAvailability
         })
       });
+      if (selectedProductImage) {
+        await uploadProductImage(editingProductId, selectedProductImage);
+      }
       resetProductForm();
       await loadProducts();
       Alert.alert("Product updated", "Catalog details are updated.");
@@ -167,6 +199,76 @@ export function ProductsScreen({ session }: { session: Session }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function selectProductImageFile(): Promise<SelectedProductImage | null> {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["image/jpeg", "image/png", "image/webp"],
+        copyToCacheDirectory: true
+      });
+
+      if (result.canceled) return null;
+      const asset = result.assets[0];
+      const mimeType = asset.mimeType;
+      if (mimeType !== "image/jpeg" && mimeType !== "image/png" && mimeType !== "image/webp") {
+        Alert.alert("Product image", "Choose a JPEG, PNG, or WebP image.");
+        return null;
+      }
+      if (asset.size && asset.size > 3 * 1024 * 1024) {
+        Alert.alert("Product image", "Product image must be under 3 MB.");
+        return null;
+      }
+
+      return {
+        uri: asset.uri,
+        name: asset.name || "product-image",
+        mimeType,
+        size: asset.size
+      };
+    } catch (error) {
+      Alert.alert("Product image", error instanceof Error ? error.message : "Could not select image");
+      return null;
+    }
+  }
+
+  async function pickProductImage() {
+    const image = await selectProductImageFile();
+    if (!image) return;
+    setSelectedProductImage(image);
+    setProductImageUrl("");
+  }
+
+  async function uploadImageForProduct(product: Product) {
+    const image = await selectProductImageFile();
+    if (!image) return;
+
+    try {
+      setLoading(true);
+      await uploadProductImage(product.id, image);
+      await loadProducts();
+      Alert.alert("Product image", `${product.name} image updated.`);
+    } catch (error) {
+      Alert.alert("Product image", error instanceof Error ? error.message : "Could not upload image");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function uploadProductImage(productId: string, image: SelectedProductImage) {
+    const base64 = await FileSystem.readAsStringAsync(image.uri, {
+      encoding: "base64"
+    });
+    const result = await apiRequest<{ product: Product; imageUrl: string }>(`/admin/products/${productId}/image`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${session.token}` },
+      body: JSON.stringify({
+        fileName: image.name,
+        mimeType: image.mimeType,
+        base64
+      })
+    });
+    setProductImageUrl(result.imageUrl);
   }
 
   async function deactivateProduct(productId: string) {
@@ -233,6 +335,8 @@ export function ProductsScreen({ session }: { session: Session }) {
     setProductPrice(String(product.price));
     setProductStock(String(product.stock ?? 0));
     setProductAvailability(product.availability);
+    setSelectedProductImage(null);
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
   }
 
   function resetProductForm() {
@@ -249,6 +353,7 @@ export function ProductsScreen({ session }: { session: Session }) {
     setProductPrice("");
     setProductStock("0");
     setProductAvailability("AVAILABLE");
+    setSelectedProductImage(null);
   }
 
   async function createOrder() {
@@ -281,12 +386,48 @@ export function ProductsScreen({ session }: { session: Session }) {
     loadOrderOptions();
   }, []);
 
+  if (session.user.role === "CUSTOMER") {
+    return (
+      <ScrollView contentContainerStyle={styles.content}>
+        <SectionHeader title="My Orders" action="Refresh" onAction={loadOrderOptions} />
+        {loading && <ActivityIndicator color={colors.brand600} />}
+        {customerOrders.length === 0 && !loading ? (
+          <EmptyState title="No orders yet" text="Your Ayurvedic wellness orders will appear here after they are placed." />
+        ) : (
+          customerOrders.map((order) => (
+            <View key={order.id} style={styles.adminListBlock}>
+              <View style={styles.handoverHeader}>
+                <Text style={styles.listTitle}>Order #{order.id.slice(-6).toUpperCase()}</Text>
+                <View style={[styles.statusBadge, order.paymentStatus === "RECEIVED_BY_COMPANY" ? styles.badgeReceived : styles.badgePending]}>
+                  <Text style={styles.statusBadgeText}>{order.paymentStatus.replaceAll("_", " ")}</Text>
+                </View>
+              </View>
+              
+              <Text style={styles.detailLine}>Status: <Text style={{fontWeight: "900", color: colors.brand800}}>{order.status.replaceAll("_", " ")}</Text></Text>
+              <Text style={styles.detailLine}>Amount: {formatMoney(order.totalAmount)}</Text>
+              
+              <Text style={styles.detailSectionTitle}>Items Ordered</Text>
+              {order.items?.map((item: any, idx: number) => (
+                <Text key={idx} style={styles.detailLine}>• {item.product?.name ?? "Ayurvedic Product"} (Qty: {item.quantity})</Text>
+              ))}
+
+              <Text style={styles.holderInfoText}>
+                Distribution Pathway Stage: {order.status.replaceAll("_", " ")}
+              </Text>
+              <OrderPipelineStepper status={order.status} />
+            </View>
+          ))
+        )}
+      </ScrollView>
+    );
+  }
+
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
       <SectionHeader title="Product catalog" action="Refresh" onAction={loadOrderOptions} />
       {session.user.role === "ADMIN" && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Add product</Text>
+          <Text style={styles.cardTitle}>{editingProductId ? "Edit product" : "Add product"}</Text>
           <Input label="Product name" value={productName} onChangeText={setProductName} />
           <Text style={styles.inputLabel}>Category</Text>
           <OptionList
@@ -297,6 +438,22 @@ export function ProductsScreen({ session }: { session: Session }) {
             renderLabel={(category) => category.id}
           />
           <Input label="Image URL" value={productImageUrl} onChangeText={setProductImageUrl} />
+          <View style={styles.imageUploadBox}>
+            <View style={styles.imageUploadTextBlock}>
+              <Text style={styles.inputLabel}>Upload image</Text>
+              <Text style={styles.mutedText}>
+                {selectedProductImage ? selectedProductImage.name : "Browse for a JPEG, PNG, or WebP file under 3 MB."}
+              </Text>
+            </View>
+            <Pressable style={styles.adminActionButton} onPress={pickProductImage}>
+              <Text style={styles.adminActionText}>Browse</Text>
+            </Pressable>
+          </View>
+          {selectedProductImage ? (
+            <Pressable style={styles.secondaryButton} onPress={() => setSelectedProductImage(null)}>
+              <Text style={styles.secondaryButtonText}>Remove selected image</Text>
+            </Pressable>
+          ) : null}
           <Input label="Short description" value={productShortDescription} onChangeText={setProductShortDescription} />
           <Input label="Description" value={productDescription} onChangeText={setProductDescription} />
           <Input label="Full description" value={productFullDescription} onChangeText={setProductFullDescription} />
@@ -361,29 +518,31 @@ export function ProductsScreen({ session }: { session: Session }) {
           )}
         </View>
       )}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Create order</Text>
-        <Text style={styles.mutedText}>Customer login is required. Level 2 or Admin can also place an order for a customer.</Text>
-        <Text style={styles.inputLabel}>Customer</Text>
-        <OptionList
-          items={users.filter((user) => user.role === "CUSTOMER")}
-          selectedId={orderCustomerId}
-          emptyText="Tap Refresh to load customers."
-          onSelect={setOrderCustomerId}
-          renderLabel={(user) => `${user.name} - ${user.phone}`}
-        />
-        <Text style={styles.inputLabel}>Product</Text>
-        <OptionList
-          items={products}
-          selectedId={orderProductId}
-          emptyText="Tap Refresh to load products."
-          onSelect={setOrderProductId}
-          renderLabel={(product) => `${product.name} - ${formatMoney(product.price)}`}
-        />
-        <Input label="Quantity" value={orderQuantity} onChangeText={setOrderQuantity} keyboardType="numeric" />
-        <Text style={styles.orderTotalText}>Auto amount: {formatMoney(orderTotal)}</Text>
-        <PrimaryButton label="Create order" onPress={createOrder} loading={loading} />
-      </View>
+      {session.user.role === "ADMIN" && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Create order</Text>
+          <Text style={styles.mutedText}>Customer login is required. Level 2 or Admin can also place an order for a customer.</Text>
+          <Text style={styles.inputLabel}>Customer</Text>
+          <OptionList
+            items={users.filter((user) => user.role === "CUSTOMER")}
+            selectedId={orderCustomerId}
+            emptyText="Tap Refresh to load customers."
+            onSelect={setOrderCustomerId}
+            renderLabel={(user) => `${user.name} - ${user.phone}`}
+          />
+          <Text style={styles.inputLabel}>Product</Text>
+          <OptionList
+            items={products}
+            selectedId={orderProductId}
+            emptyText="Tap Refresh to load products."
+            onSelect={setOrderProductId}
+            renderLabel={(product) => `${product.name} - ${formatMoney(product.price)}`}
+          />
+          <Input label="Quantity" value={orderQuantity} onChangeText={setOrderQuantity} keyboardType="numeric" />
+          <Text style={styles.orderTotalText}>Auto amount: {formatMoney(orderTotal)}</Text>
+          <PrimaryButton label="Create order" onPress={createOrder} loading={loading} />
+        </View>
+      )}
       <CategoryRail
         categories={catalogCategories(products)}
         selectedCategory={selectedCategory}
@@ -392,7 +551,15 @@ export function ProductsScreen({ session }: { session: Session }) {
           setSelectedProduct(null);
         }}
       />
-      {selectedProduct ? <ProductDetailCard product={selectedProduct} onClose={() => setSelectedProduct(null)} /> : null}
+      {selectedProduct ? (
+        <ProductDetailCard
+          product={selectedProduct}
+          session={session}
+          users={users}
+          onClose={() => setSelectedProduct(null)}
+          onNavigate={onNavigate}
+        />
+      ) : null}
       {loading && <ActivityIndicator color={colors.brand600} />}
       {products.length === 0 && !loading ? (
         <EmptyState title="No products yet" text="Admin can add products from the backend. Catalog will appear here." />
@@ -404,6 +571,9 @@ export function ProductsScreen({ session }: { session: Session }) {
               <View style={styles.adminProductActions}>
                 <Pressable style={styles.adminActionButton} onPress={() => editProduct(product)}>
                   <Text style={styles.adminActionText}>Edit</Text>
+                </Pressable>
+                <Pressable style={styles.adminActionButton} onPress={() => uploadImageForProduct(product)}>
+                  <Text style={styles.adminActionText}>Upload image</Text>
                 </Pressable>
                 {product.isActive ? (
                   <Pressable style={styles.adminDangerButton} onPress={() => deactivateProduct(product.id)}>
@@ -451,7 +621,58 @@ function CategoryRail({
   );
 }
 
-function ProductDetailCard({ product, onClose }: { product: Product; onClose: () => void }) {
+function ProductDetailCard({
+  product,
+  session,
+  users,
+  onClose,
+  onNavigate
+}: {
+  product: Product;
+  session: Session;
+  users: User[];
+  onClose: () => void;
+  onNavigate?: (tab: any) => void;
+}) {
+  const [quantity, setQuantity] = useState(1);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [showSummary, setShowSummary] = useState(false);
+  const [placingOrder, setPlacingOrder] = useState(false);
+
+  const isAvailable = product.availability === "AVAILABLE";
+  const hasStock = typeof product.stock === "number" ? product.stock > 0 : true;
+  const orderTotal = Number(product.price) * quantity;
+
+  async function handleProceedToPayment() {
+    try {
+      setPlacingOrder(true);
+      const customerId = session.user.role === "CUSTOMER" ? session.user.id : selectedCustomerId;
+      await apiRequest<{ order: any }>("/orders", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.token}` },
+        body: JSON.stringify({
+          customerId,
+          items: [
+            {
+              productId: product.id,
+              quantity: quantity
+            }
+          ]
+        })
+      });
+      setShowSummary(false);
+      onClose();
+      Alert.alert("Order Placed Successfully", "Please proceed to make payment for your order.");
+      if (onNavigate) {
+        onNavigate("payments");
+      }
+    } catch (error) {
+      Alert.alert("Order Placement Failed", error instanceof Error ? error.message : "Could not create order");
+    } finally {
+      setPlacingOrder(false);
+    }
+  }
+
   return (
     <View style={styles.productDetailCard}>
       <View style={styles.productDetailHeader}>
@@ -478,6 +699,120 @@ function ProductDetailCard({ product, onClose }: { product: Product; onClose: ()
       <Text style={styles.detailText}>{product.usageInstructions || "Usage instructions will be added by Admin."}</Text>
       <Text style={styles.detailSectionTitle}>Benefits</Text>
       <Text style={styles.detailText}>{product.benefits || "Benefits will be added by Admin."}</Text>
+
+      <View style={styles.checkoutContainer}>
+        {isAvailable && hasStock ? (
+          <>
+            <View style={styles.quantityRow}>
+              <Text style={styles.quantityLabel}>Quantity</Text>
+              <View style={styles.quantityPicker}>
+                <Pressable
+                  style={styles.quantityBtn}
+                  onPress={() => setQuantity((q) => Math.max(1, q - 1))}
+                >
+                  <Text style={styles.quantityBtnText}>-</Text>
+                </Pressable>
+                <Text style={styles.quantityText}>{quantity}</Text>
+                <Pressable
+                  style={styles.quantityBtn}
+                  onPress={() => setQuantity((q) => Math.min(typeof product.stock === "number" ? product.stock : 99, q + 1))}
+                >
+                  <Text style={styles.quantityBtnText}>+</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {session.user.role !== "CUSTOMER" && (
+              <View style={{ marginVertical: 10 }}>
+                <Text style={styles.inputLabel}>Select Customer</Text>
+                <OptionList
+                  items={users.filter((user) => user.role === "CUSTOMER")}
+                  selectedId={selectedCustomerId}
+                  emptyText="No customers found"
+                  onSelect={setSelectedCustomerId}
+                  renderLabel={(user) => `${user.name} - ${user.phone}`}
+                />
+              </View>
+            )}
+
+            <Pressable
+              style={styles.buyNowBtn}
+              onPress={() => {
+                if (session.user.role !== "CUSTOMER" && !selectedCustomerId) {
+                  Alert.alert("Error", "Please select a customer first.");
+                  return;
+                }
+                setShowSummary(true);
+              }}
+            >
+              <Text style={styles.buyNowBtnText}>Buy Now — {formatMoney(orderTotal)}</Text>
+            </Pressable>
+          </>
+        ) : (
+          <Text style={[styles.availabilityText, { color: colors.danger, textAlign: "center", marginVertical: 10 }]}>
+            {!isAvailable ? "Coming Soon / Unavailable" : "Out of Stock"}
+          </Text>
+        )}
+      </View>
+
+      <Modal visible={showSummary} transparent={true} animationType="fade" onRequestClose={() => setShowSummary(false)}>
+        <View style={styles.summaryOverlay}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryCardTitle}>Order Summary</Text>
+
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryRowLabel}>Product</Text>
+              <Text style={styles.summaryRowVal}>{product.name}</Text>
+            </View>
+
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryRowLabel}>Quantity</Text>
+              <Text style={styles.summaryRowVal}>{quantity}</Text>
+            </View>
+
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryRowLabel}>Price</Text>
+              <Text style={styles.summaryRowVal}>{formatMoney(product.price)} / unit</Text>
+            </View>
+
+            {session.user.role !== "CUSTOMER" && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryRowLabel}>Customer</Text>
+                <Text style={styles.summaryRowVal}>
+                  {users.find((u) => u.id === selectedCustomerId)?.name || "Selected Customer"}
+                </Text>
+              </View>
+            )}
+
+            <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: colors.slate100, marginTop: 8, paddingTop: 8 }]}>
+              <Text style={[styles.summaryRowLabel, { color: colors.slate900 }]}>Total Amount</Text>
+              <Text style={[styles.summaryRowVal, { color: colors.brand600, fontSize: 16 }]}>{formatMoney(orderTotal)}</Text>
+            </View>
+
+            <View style={styles.summaryActionsRow}>
+              <Pressable
+                style={styles.summaryCancelBtn}
+                onPress={() => setShowSummary(false)}
+                disabled={placingOrder}
+              >
+                <Text style={styles.summaryCancelBtnText}>Cancel</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.summaryConfirmBtn}
+                onPress={handleProceedToPayment}
+                disabled={placingOrder}
+              >
+                {placingOrder ? (
+                  <ActivityIndicator color={colors.white} size="small" />
+                ) : (
+                  <Text style={styles.summaryConfirmBtnText}>Confirm & Proceed</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -547,6 +882,21 @@ const styles = StyleSheet.create({
     color: colors.slate500,
     lineHeight: 20,
     marginBottom: 12
+  },
+  imageUploadBox: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    backgroundColor: colors.slate50,
+    padding: 12,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12
+  },
+  imageUploadTextBlock: {
+    flex: 1
   },
   inputLabel: {
     fontSize: 14,
@@ -694,7 +1044,7 @@ const styles = StyleSheet.create({
   },
   productImage: {
     width: 94,
-    minHeight: 120,
+    height: 120,
     backgroundColor: colors.brand50,
     alignItems: "center",
     justifyContent: "center"
@@ -810,5 +1160,288 @@ const styles = StyleSheet.create({
   detailFallbackImage: {
     width: 90,
     height: 90
+  },
+  stepperContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginVertical: 14,
+    paddingHorizontal: 4,
+    width: "100%"
+  },
+  stepWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1
+  },
+  stepUnit: {
+    alignItems: "center",
+    zIndex: 2
+  },
+  stepCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5
+  },
+  stepCircleActive: {
+    backgroundColor: colors.brand600,
+    borderColor: colors.brand600
+  },
+  stepCircleInactive: {
+    backgroundColor: colors.white,
+    borderColor: colors.slate200
+  },
+  stepCircleText: {
+    fontSize: 11,
+    fontWeight: "800"
+  },
+  stepCircleTextActive: {
+    color: colors.white
+  },
+  stepCircleTextInactive: {
+    color: colors.slate500
+  },
+  stepLabel: {
+    fontSize: 9,
+    fontWeight: "700",
+    marginTop: 4,
+    position: "absolute",
+    top: 24,
+    width: 60,
+    textAlign: "center"
+  },
+  stepLabelActive: {
+    color: colors.brand800
+  },
+  stepLabelInactive: {
+    color: colors.slate500
+  },
+  stepLine: {
+    height: 2,
+    flex: 1,
+    marginHorizontal: -12,
+    marginTop: -12,
+    zIndex: 1
+  },
+  stepLineActive: {
+    backgroundColor: colors.brand500
+  },
+  stepLineInactive: {
+    backgroundColor: colors.slate200
+  },
+  holderInfoText: {
+    fontSize: 12,
+    color: colors.brand800,
+    fontWeight: "700",
+    backgroundColor: colors.brand50,
+    padding: 8,
+    borderRadius: 6,
+    marginVertical: 10,
+    lineHeight: 16
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: "800"
+  },
+  badgePending: {
+    backgroundColor: "#fffbeb",
+    color: "#b45309"
+  },
+  badgeReceived: {
+    backgroundColor: "#f0fdf4",
+    color: "#15803d"
+  },
+  handoverHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10
+  },
+  checkoutContainer: {
+    backgroundColor: colors.slate50,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    padding: 14,
+    marginTop: 16
+  },
+  quantityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginVertical: 10
+  },
+  quantityLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.slate700
+  },
+  quantityPicker: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12
+  },
+  quantityBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.brand50,
+    borderWidth: 1,
+    borderColor: colors.brand100,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  quantityBtnText: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: colors.brand800
+  },
+  quantityText: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: colors.slate900,
+    minWidth: 20,
+    textAlign: "center"
+  },
+  buyNowBtn: {
+    backgroundColor: colors.brand700,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 8
+  },
+  buyNowBtnText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  summaryOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20
+  },
+  summaryCard: {
+    width: "100%",
+    maxWidth: 380,
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 18,
+    shadowColor: colors.slate900,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 18,
+    elevation: 8
+  },
+  summaryCardTitle: {
+    fontSize: 17,
+    fontWeight: "900",
+    color: colors.slate900,
+    marginBottom: 14,
+    textAlign: "center"
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 6
+  },
+  summaryRowLabel: {
+    fontSize: 13,
+    color: colors.slate500,
+    fontWeight: "700"
+  },
+  summaryRowVal: {
+    fontSize: 13,
+    color: colors.slate900,
+    fontWeight: "800",
+    textAlign: "right"
+  },
+  summaryActionsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
+    marginTop: 16
+  },
+  summaryCancelBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    alignItems: "center",
+    backgroundColor: colors.slate50
+  },
+  summaryCancelBtnText: {
+    color: colors.slate500,
+    fontSize: 13,
+    fontWeight: "700"
+  },
+  summaryConfirmBtn: {
+    flex: 1.5,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: colors.brand800,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  summaryConfirmBtnText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: "900"
   }
 });
+
+function OrderPipelineStepper({ status }: { status: string }) {
+  const orderStatuses = [
+    "CREATED",
+    "MONEY_COLLECTED_BY_LEVEL_2",
+    "MONEY_TRANSFERRED_TO_LEVEL_1",
+    "MONEY_TRANSFERRED_TO_MANAGER",
+    "MONEY_RECEIVED_BY_COMPANY",
+    "PRODUCT_RELEASED_BY_COMPANY",
+    "PRODUCT_RECEIVED_BY_MANAGER",
+    "PRODUCT_RECEIVED_BY_LEVEL_1",
+    "PRODUCT_RECEIVED_BY_LEVEL_2",
+    "DELIVERED_TO_CUSTOMER"
+  ];
+  
+  const currentIdx = orderStatuses.indexOf(status);
+  
+  const steps = [
+    { label: "Ordered", active: currentIdx >= 0 },
+    { label: "Paid", active: currentIdx >= 4 },
+    { label: "Shipped", active: currentIdx >= 5 },
+    { label: "Delivered", active: currentIdx >= 9 }
+  ];
+
+  return (
+    <View style={styles.stepperContainer}>
+      {steps.map((step, idx) => (
+        <View key={step.label} style={styles.stepWrapper}>
+          <View style={styles.stepUnit}>
+            <View style={[styles.stepCircle, step.active ? styles.stepCircleActive : styles.stepCircleInactive]}>
+              <Text style={[styles.stepCircleText, step.active ? styles.stepCircleTextActive : styles.stepCircleTextInactive]}>
+                {idx + 1}
+              </Text>
+            </View>
+            <Text style={[styles.stepLabel, step.active ? styles.stepLabelActive : styles.stepLabelInactive]}>
+              {step.label}
+            </Text>
+          </View>
+          {idx < steps.length - 1 && (
+            <View style={[styles.stepLine, steps[idx + 1].active ? styles.stepLineActive : styles.stepLineInactive]} />
+          )}
+        </View>
+      ))}
+    </View>
+  );
+}

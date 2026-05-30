@@ -1,0 +1,1 @@
+ALTER TYPE "FileAssetStorageProvider" ADD VALUE IF NOT EXISTS 'SUPABASE';

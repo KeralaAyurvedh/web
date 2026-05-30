@@ -189,6 +189,24 @@ usersRouter.post("/", requireAuth, async (req, res) => {
   });
 });
 
+usersRouter.get("/me", requireAuth, async (req, res) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.user!.id },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      role: true,
+      status: true,
+      referralCode: true
+    }
+  });
+  if (!user) {
+    return res.status(404).json({ error: "User not found" });
+  }
+  return res.json({ user });
+});
+
 usersRouter.get("/me/network", requireAuth, async (req, res) => {
   if (req.user!.role === Role.CUSTOMER) {
     return res.status(403).json({ error: "Permission denied" });
@@ -507,8 +525,8 @@ usersRouter.post("/me/upgrade-request", requireAuth, async (req, res) => {
     aadhaarNumber: z.string().regex(/^\d{12}$/, "A valid 12-digit Aadhaar number is required."),
     panNumber: z.preprocess(
       (value) => typeof value === "string" ? value.trim().toUpperCase() : value,
-      z.string().regex(/^[A-Z]{5}\d{4}[A-Z]$/, "A valid 10-character PAN number is required.")
-    ),
+      z.string().optional()
+    ).optional(),
     privacyConsentAccepted: z.literal(true, {
       error: "Privacy consent is required before submitting Aadhaar/PAN details"
     })

@@ -1170,6 +1170,7 @@ export function AdminScreen({
 
       {adminSection === "system" ? (
         <SystemMonitorSection
+          session={session}
           databaseStats={databaseStats}
           storageStats={storageStats}
           systemHealth={systemHealth}
@@ -1396,6 +1397,7 @@ export function AdminScreen({
 }
 
 function SystemMonitorSection({
+  session,
   databaseStats,
   storageStats,
   systemHealth,
@@ -1407,6 +1409,7 @@ function SystemMonitorSection({
   onTableSearch,
   onRefresh
 }: {
+  session: Session;
   databaseStats: DatabaseStats | null;
   storageStats: UploadStorageStats | null;
   systemHealth: SystemHealth | null;
@@ -1424,8 +1427,94 @@ function SystemMonitorSection({
   const warnings = [...(databaseStats?.warnings ?? []), ...(storageStats?.warnings ?? []), ...(backupStatus?.warnings ?? [])];
   const storagePercent = database?.usedPercent ?? 0;
 
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState(
+    "A new version of Kerala Ayurvedh is available. Please download and install the fresh update to continue."
+  );
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const result = await apiRequest<{ updateAvailable: boolean; updateMessage: string }>("/auth/app-update-status");
+        setUpdateAvailable(result.updateAvailable);
+        setUpdateMessage(result.updateMessage);
+      } catch {
+        // Silent error
+      }
+    }
+    loadSettings();
+  }, []);
+
+  async function handleSaveSettings() {
+    try {
+      setSavingSettings(true);
+      await apiRequest("/admin/app-update-status", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.token}` },
+        body: JSON.stringify({
+          updateAvailable,
+          updateMessage
+        })
+      });
+      Alert.alert("Success", "System update settings saved successfully.");
+    } catch (error) {
+      Alert.alert("Error", error instanceof Error ? error.message : "Failed to save settings.");
+    } finally {
+      setSavingSettings(false);
+    }
+  }
+
   return (
     <View style={styles.systemStack}>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>App Update Prompter Settings</Text>
+        <Text style={styles.mutedText}>
+          Toggling this option will display a persistent, non-dismissible popup to every mobile user stating that a new update is available.
+        </Text>
+
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginVertical: 14, padding: 12, backgroundColor: colors.slate50, borderRadius: 8, borderWidth: 1, borderColor: colors.slate200 }}>
+          <Text style={{ fontSize: 14, fontWeight: "700", color: colors.slate900 }}>Update Prompter Toggle</Text>
+          <Pressable
+            style={{
+              width: 52,
+              height: 28,
+              borderRadius: 14,
+              backgroundColor: updateAvailable ? colors.brand600 : colors.slate200,
+              padding: 2,
+              justifyContent: "center",
+            }}
+            onPress={() => setUpdateAvailable(!updateAvailable)}
+          >
+            <View
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: 12,
+                backgroundColor: colors.white,
+                alignSelf: updateAvailable ? "flex-end" : "flex-start",
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.2,
+                shadowRadius: 2,
+                elevation: 2
+              }}
+            />
+          </Pressable>
+        </View>
+
+        <TextArea
+          label="Custom Update Notification Message"
+          value={updateMessage}
+          onChangeText={setUpdateMessage}
+        />
+
+        <PrimaryButton
+          label="Save Update Configuration"
+          onPress={handleSaveSettings}
+          loading={savingSettings}
+        />
+      </View>
       <View style={styles.systemHeroCard}>
         <View style={styles.systemHeroTop}>
           <View style={styles.systemHeroIcon}>
@@ -1916,9 +2005,9 @@ function AdminUserDetailCard({
         <Text style={styles.mutedText}>No sponsor. This is a root/company-level user.</Text>
       )}
 
-      <Text style={styles.detailSectionTitle}>Direct downline ({user.downline?.length ?? 0})</Text>
+      <Text style={styles.detailSectionTitle}>Direct Representatives ({user.downline?.length ?? 0})</Text>
       {(user.downline ?? []).length === 0 ? (
-        <Text style={styles.mutedText}>No direct downline.</Text>
+        <Text style={styles.mutedText}>No direct representatives.</Text>
       ) : (
         user.downline!.map((child) => <TreeUserRow key={child.id} user={child} depth={0} />)
       )}

@@ -6,7 +6,11 @@ const defaultJwtSecret = "change-this-secret-before-production";
 const nodeEnv = process.env.NODE_ENV ?? "development";
 const jwtSecret = process.env.JWT_SECRET ?? defaultJwtSecret;
 const smtpSecure = process.env.SMTP_SECURE === "true" || process.env.SMTP_PORT === "465";
-const storageProvider = process.env.STORAGE_PROVIDER === "r2" ? "r2" : "local";
+const storageProvider = process.env.STORAGE_PROVIDER === "r2"
+  ? "r2"
+  : process.env.STORAGE_PROVIDER === "supabase"
+    ? "supabase"
+    : "local";
 const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",").map((origin) => origin.trim()).filter(Boolean)
   : undefined;
@@ -24,7 +28,7 @@ export const config = {
   port: Number(process.env.PORT) || 4000,
   jwtSecret,
   corsOrigins,
-  jsonBodyLimit: process.env.JSON_BODY_LIMIT ?? "1mb",
+  jsonBodyLimit: process.env.JSON_BODY_LIMIT ?? "6mb",
   databaseStorageLimitMb: process.env.DATABASE_STORAGE_LIMIT_MB
     ? Number(process.env.DATABASE_STORAGE_LIMIT_MB)
     : undefined,
@@ -54,6 +58,9 @@ export const config = {
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || undefined,
     publicBaseUrl: process.env.R2_PUBLIC_BASE_URL || undefined,
     forcePathStyle: process.env.R2_FORCE_PATH_STYLE === "true",
+    supabaseUrl: process.env.SUPABASE_URL || undefined,
+    supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || undefined,
+    supabaseBucket: process.env.SUPABASE_STORAGE_BUCKET || process.env.R2_BUCKET || undefined,
     signedUrlExpiresSeconds: Number(process.env.STORAGE_SIGNED_URL_EXPIRES_SECONDS ?? 300)
   }
 };

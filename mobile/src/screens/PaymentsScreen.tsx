@@ -14,6 +14,7 @@ import * as FileSystem from "expo-file-system";
 import { Session, Handover, User, Order, PaymentHandoverStatusValue, Role } from "../constants/types";
 import { apiRequest, formatMoney, formatBytes, mediaUrl } from "../services/api";
 import { colors } from "../constants/theme";
+import { PAYMENT_CONFIG } from "../constants/config";
 import {
   Input,
   OptionList,
@@ -48,25 +49,70 @@ export function PaymentsScreen({ session }: { session: Session }) {
     }
   }
 
+  const [utrValues, setUtrValues] = useState<Record<string, string>>({});
+
   async function loadPaymentOptions() {
     try {
       setLoading(true);
-      const [handoverResult, userResult, orderResult] = await Promise.all([
-        apiRequest<{ handovers: Handover[] }>("/payments/handovers/me", {
-          headers: { Authorization: `Bearer ${session.token}` }
-        }),
-        apiRequest<{ users: User[] }>("/users/options", {
-          headers: { Authorization: `Bearer ${session.token}` }
-        }),
-        apiRequest<{ orders: Order[] }>("/orders", {
-          headers: { Authorization: `Bearer ${session.token}` }
-        })
-      ]);
-      setHandovers(handoverResult.handovers);
-      setUsers(userResult.users);
-      setOrders(orderResult.orders);
+      if (session.user.role === "CUSTOMER") {
+        const [handoverResult, orderResult] = await Promise.all([
+          apiRequest<{ handovers: Handover[] }>("/payments/handovers/me", {
+            headers: { Authorization: `Bearer ${session.token}` }
+          }),
+          apiRequest<{ orders: Order[] }>("/orders", {
+            headers: { Authorization: `Bearer ${session.token}` }
+          })
+        ]);
+        setHandovers(handoverResult.handovers);
+        setOrders(orderResult.orders);
+      } else {
+        const [handoverResult, userResult, orderResult] = await Promise.all([
+          apiRequest<{ handovers: Handover[] }>("/payments/handovers/me", {
+            headers: { Authorization: `Bearer ${session.token}` }
+          }),
+          apiRequest<{ users: User[] }>("/users/options", {
+            headers: { Authorization: `Bearer ${session.token}` }
+          }),
+          apiRequest<{ orders: Order[] }>("/orders", {
+            headers: { Authorization: `Bearer ${session.token}` }
+          })
+        ]);
+        setHandovers(handoverResult.handovers);
+        setUsers(userResult.users);
+        setOrders(orderResult.orders);
+      }
     } catch (error) {
       Alert.alert("Payments", error instanceof Error ? error.message : "Could not load payment options");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function createCustomerHandover(orderId: string, orderAmount: string, utr: string) {
+    if (!utr || utr.trim().length < 6) {
+      Alert.alert("Error", "Please enter a valid UPI transaction reference ID (UTR) of at least 6 characters.");
+      return;
+    }
+    try {
+      setLoading(true);
+      await apiRequest<{ handover: Handover }>("/payments/handovers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.token}`
+        },
+        body: JSON.stringify({
+          orderId,
+          amount: orderAmount,
+          notes: `UPI Transaction ID: ${utr}`
+        })
+      });
+      // Clear input value
+      setUtrValues(prev => ({ ...prev, [orderId]: "" }));
+      await loadPaymentOptions();
+      Alert.alert("Payment Submitted", "Your transaction reference has been recorded successfully. Our team will verify it.");
+    } catch (error) {
+      Alert.alert("Payment Error", error instanceof Error ? error.message : "Could not submit payment reference");
     } finally {
       setLoading(false);
     }
@@ -208,7 +254,7 @@ export function PaymentsScreen({ session }: { session: Session }) {
       if (targetUser.role === "ADMIN") return "Company Admin";
       if (targetUser.role === "MANAGER" || targetUser.role === "BETA_MANAGER") return "Upline Manager";
       if (targetUser.role === "LEVEL_1") return "Upline Main Pillar Advisor";
-      if (targetUser.role === "LEVEL_2") return "Upline Downline Representative";
+      if (targetUser.role === "LEVEL_2") return "Upline Representative";
     }
 
     return targetUser.name;
@@ -241,6 +287,110 @@ export function PaymentsScreen({ session }: { session: Session }) {
   useEffect(() => {
     loadPaymentOptions();
   }, []);
+
+  if (session.user.role !== "ADMIN") {
+    const pendingOrders = orders.filter(
+      (order) => order.paymentStatus === "PENDING"
+    );
+
+    return (
+      <ScrollView contentContainerStyle={styles.content}>
+        <SectionHeader title="UPI Payments & Checkout" action="Refresh" onAction={loadPaymentOptions} />
+        {loading && <ActivityIndicator color={colors.brand600} />}
+        
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Pay via UPI Deep Link</Text>
+          <Text style={styles.mutedText}>
+            Select your pending order below, tap the "Pay via UPI" button to launch your preferred payment app (GPay, PhonePe, Paytm, BHIM), and enter the Transaction ID (UTR) to record your payment instantly.
+          </Text>
+        </View>
+
+        <Text style={styles.detailSectionTitle}>Pending Orders Requiring Payment</Text>
+        {pendingOrders.length === 0 ? (
+          <View style={[styles.card, { padding: 24, alignItems: "center" }]}>
+            <Text style={styles.mutedText}>No pending orders requiring payment found.</Text>
+          </View>
+        ) : (
+          pendingOrders.map((order) => {
+            const currentUtr = utrValues[order.id] || "";
+            return (
+              <View key={order.id} style={styles.adminListBlock}>
+                <View style={styles.handoverHeader}>
+                  <Text style={styles.listTitle}>Order #{order.id.slice(-6).toUpperCase()}</Text>
+                  <Text style={[styles.listTitle, { color: colors.brand800 }]}>{formatMoney(order.totalAmount)}</Text>
+                </View>
+                
+                <Text style={styles.detailLine}>
+                  Items: {order.items?.map((item) => `${item.product?.name ?? "Ayurvedic Product"} (Qty: {item.quantity})`).join(", ")}
+                </Text>
+
+                <Pressable
+                  style={({ pressed }) => [
+                    { backgroundColor: colors.brand700, marginVertical: 12, borderRadius: 12, minHeight: 46, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.8 : 1 }
+                  ]}
+                  onPress={() => {
+                    const upiUrl = `upi://pay?pa=${PAYMENT_CONFIG.UPI_ID}&pn=Kerala%20Ayurvedh&am=${order.totalAmount}&cu=INR&tn=Order%20${order.id.slice(-6).toUpperCase()}`;
+                    Linking.openURL(upiUrl).catch(() => {
+                      Alert.alert("UPI Error", "Could not open UPI payment apps. Make sure GPay, PhonePe, Paytm, or BHIM is installed.");
+                    });
+                  }}
+                >
+                  <Text style={{ color: colors.white, fontWeight: "900", fontSize: 14 }}>Pay via UPI App</Text>
+                </Pressable>
+
+                <View style={{ marginTop: 8 }}>
+                  <Input
+                    label="Transaction Reference ID (UTR / Txn ID)"
+                    placeholder="Enter 12-digit transaction reference number"
+                    value={currentUtr}
+                    onChangeText={(val) => setUtrValues(prev => ({ ...prev, [order.id]: val }))}
+                  />
+                  <PrimaryButton
+                    label="Submit UTR Reference"
+                    onPress={() => createCustomerHandover(order.id, order.totalAmount, currentUtr)}
+                    loading={loading}
+                  />
+                </View>
+              </View>
+            );
+          })
+        )}
+
+        <Text style={styles.detailSectionTitle}>My Payment History</Text>
+        {handovers.length === 0 && !loading ? (
+          <EmptyState title="No transactions yet" text="Submitted payments and approval stages will appear here." />
+        ) : (
+          handovers.map((item) => (
+            <View key={item.id} style={styles.adminListBlock}>
+              <View style={styles.handoverHeader}>
+                <Text style={styles.listTitle}>{formatMoney(item.amount)}</Text>
+                <View style={[styles.statusBadge, getStatusBadgeStyle(item.status)]}>
+                  <Text style={styles.statusBadgeText}>{item.status}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.detailLine}>
+                From: {getMaskedName(item.fromUser, true)} - To: {getMaskedName(item.toUser, false)}
+              </Text>
+              {item.order ? (
+                <Text style={styles.detailLine}>
+                  Order: #{item.order.id.slice(-6).toUpperCase()} ({item.order.paymentStatus.replaceAll("_", " ")})
+                </Text>
+              ) : null}
+              {item.notes ? (
+                <Text style={[styles.detailLine, { fontStyle: "italic", color: colors.brand800, marginTop: 4 }]}>
+                  Notes: {item.notes}
+                </Text>
+              ) : null}
+
+              <Text style={styles.holderInfoText}>{getHolderInfo(item)}</Text>
+              <HandoverStepper status={item.status} orderStatus={item.order?.paymentStatus} />
+            </View>
+          ))
+        )}
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -455,6 +605,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.slate700,
     marginBottom: 4
+  },
+  detailSectionTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.slate900,
+    marginTop: 16,
+    marginBottom: 8,
+    paddingHorizontal: 4
   },
   holderInfoText: {
     fontSize: 12,

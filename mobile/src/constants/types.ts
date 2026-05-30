@@ -74,6 +74,7 @@ export type Handover = {
   fromUser?: { id: string; name: string; phone: string; role: Role };
   toUser?: { id: string; name: string; phone: string; role: Role };
   order?: { id: string; totalAmount: string; status: string; paymentStatus: string };
+  notes?: string | null;
 };
 
 export type Matrix = {
@@ -358,7 +359,7 @@ export type ApplicationStatusResult = Pick<MemberApplication, "id" | "name" | "p
 };
 
 export type AdminSection = "overview" | "applications" | "users" | "orders" | "payments" | "commissions" | "reports" | "help" | "system" | "matrix" | "audit" | "security";
-export type MoreMenuItem = { key: TabKey | "logout"; title: string; description: string; icon: string; adminOnly?: boolean; danger?: boolean };
+export type MoreMenuItem = { key: TabKey | "logout" | "update"; title: string; description: string; icon: string; adminOnly?: boolean; danger?: boolean };
 export type HelpStep = { icon: string; title: string; text: string; route?: TabKey; action?: string };
 export type HelpGuide = { role: Role; title: string; message: string; steps: HelpStep[]; nextActions: HelpStep[] };
 export type HelpTopic = { id: string; title: string; keywords: string[]; text: string; steps: string[]; category?: HelpTopicCategory; route?: TabKey; action?: string };

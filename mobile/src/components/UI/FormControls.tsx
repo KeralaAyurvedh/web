@@ -10,6 +10,8 @@ export function Input(props: {
   secureTextEntry?: boolean;
   keyboardType?: "default" | "phone-pad" | "numeric" | "email-address";
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
+  placeholder?: string;
+  maxLength?: number;
 }) {
   const [hidePassword, setHidePassword] = useState(props.secureTextEntry === true);
   const isPassword = props.secureTextEntry === true;
@@ -28,6 +30,8 @@ export function Input(props: {
           textContentType={isPassword ? "password" : undefined}
           style={[styles.input, isPassword && styles.passwordInput]}
           placeholderTextColor={colors.slate500}
+          placeholder={props.placeholder}
+          maxLength={props.maxLength}
         />
         {isPassword && (
           <Pressable

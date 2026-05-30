@@ -34,7 +34,6 @@ export function NetworkScreen({ session }: { session: Session }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [aadhaarNumber, setAadhaarNumber] = useState("");
-  const [panNumber, setPanNumber] = useState("");
   const [privacyConsentAccepted, setPrivacyConsentAccepted] = useState(false);
   const [role, setRole] = useState<Role>(defaultCreateRole(session.user.role));
   const [sponsorId, setSponsorId] = useState("");
@@ -77,12 +76,8 @@ export function NetworkScreen({ session }: { session: Session }) {
         Alert.alert("Validation Error", "A valid 12-digit Aadhaar number is required");
         return;
       }
-      if (!panNumber.trim() || panNumber.trim().length < 10) {
-        Alert.alert("Validation Error", "A valid 10-character PAN number is required");
-        return;
-      }
       if (!privacyConsentAccepted) {
-        Alert.alert("Privacy consent required", "Please accept the privacy consent before submitting Aadhaar/PAN details.");
+        Alert.alert("Privacy consent required", "Please accept the privacy consent before submitting Aadhaar details.");
         return;
       }
     } else {
@@ -122,7 +117,6 @@ export function NetworkScreen({ session }: { session: Session }) {
             requestedRole: role,
             sponsorPhone: session.user.phone,
             aadhaarNumber: aadhaarNumber || undefined,
-            panNumber: panNumber || undefined,
             privacyConsentAccepted: true
           })
         });
@@ -131,7 +125,6 @@ export function NetworkScreen({ session }: { session: Session }) {
       setPhone("");
       setEmail("");
       setAadhaarNumber("");
-      setPanNumber("");
       setPrivacyConsentAccepted(false);
       setSponsorId("");
       await loadNetwork();
@@ -198,8 +191,7 @@ export function NetworkScreen({ session }: { session: Session }) {
         ) : (
           <>
             <Input label="Aadhaar number" value={aadhaarNumber} onChangeText={setAadhaarNumber} keyboardType="numeric" />
-            <Input label="PAN number" value={panNumber} onChangeText={setPanNumber} autoCapitalize="characters" />
-            <Text style={styles.mutedText}>No Aadhaar/PAN image upload is needed.</Text>
+            <Text style={styles.mutedText}>No Aadhaar image upload is needed.</Text>
             <Pressable
               style={styles.consentRow}
               onPress={() => setPrivacyConsentAccepted((value) => !value)}
@@ -208,7 +200,7 @@ export function NetworkScreen({ session }: { session: Session }) {
                 <Text style={styles.consentCheck}>{privacyConsentAccepted ? "✓" : ""}</Text>
               </View>
               <Text style={styles.consentText}>
-                I confirm this applicant has consented to Kerala Ayurvedh collecting and using Aadhaar/PAN numbers only for identity verification, application review, fraud prevention, and legal compliance. Images are not collected.
+                I confirm this applicant has consented to Kerala Ayurvedh collecting and using Aadhaar number only for identity verification, application review, fraud prevention, and legal compliance. Images are not collected.
               </Text>
             </Pressable>
           </>

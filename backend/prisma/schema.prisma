@@ -147,6 +147,7 @@ enum FileAssetCategory {
 enum FileAssetStorageProvider {
   LOCAL
   R2
+  SUPABASE
 }
 
 model User {

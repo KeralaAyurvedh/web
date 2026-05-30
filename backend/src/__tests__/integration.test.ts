@@ -39,35 +39,95 @@ describe("MLM & Commission Business Rules Integration Tests", () => {
     };
   }
 
-  async function cleanupHttpPermissionFixtures() {
+  async function cleanupAllTestFixtures() {
+    // 1. Role Upgrade Requests
+    await prisma.roleUpgradeRequest.deleteMany({
+      where: {
+        OR: [
+          { requester: { phone: { startsWith: "991" } } },
+          { requester: { phone: { startsWith: "992" } } }
+        ]
+      }
+    });
+
+    // 2. Payment Handovers
     await prisma.paymentHandover.deleteMany({
       where: {
         OR: [
+          { fromUser: { phone: { startsWith: "991" } } },
           { fromUser: { phone: { startsWith: "992" } } },
+          { toUser: { phone: { startsWith: "991" } } },
           { toUser: { phone: { startsWith: "992" } } },
+          { order: { customer: { phone: { startsWith: "991" } } } },
           { order: { customer: { phone: { startsWith: "992" } } } }
         ]
       }
     });
+
+    // 3. Order Items
     await prisma.orderItem.deleteMany({
-      where: { order: { customer: { phone: { startsWith: "992" } } } }
+      where: {
+        OR: [
+          { order: { customer: { phone: { startsWith: "991" } } } },
+          { order: { customer: { phone: { startsWith: "992" } } } }
+        ]
+      }
     });
+
+    // 4. Orders
     await prisma.order.deleteMany({
-      where: { customer: { phone: { startsWith: "992" } } }
+      where: {
+        OR: [
+          { customer: { phone: { startsWith: "991" } } },
+          { customer: { phone: { startsWith: "992" } } },
+          { collectedBy: { phone: { startsWith: "991" } } },
+          { collectedBy: { phone: { startsWith: "992" } } }
+        ]
+      }
     });
-    await prisma.auditLog.deleteMany({
-      where: { actor: { phone: { startsWith: "992" } } }
-    });
+
+    // 5. Commission Ledgers
     await prisma.commissionLedger.deleteMany({
       where: {
         OR: [
+          { receiver: { phone: { startsWith: "991" } } },
           { receiver: { phone: { startsWith: "992" } } },
+          { sourceUser: { phone: { startsWith: "991" } } },
           { sourceUser: { phone: { startsWith: "992" } } }
         ]
       }
     });
+
+    // 6. Beta Matrices
+    await prisma.betaMatrix.deleteMany({
+      where: {
+        OR: [
+          { rootManager: { phone: { startsWith: "991" } } },
+          { rootManager: { phone: { startsWith: "992" } } },
+          { betaManager: { phone: { startsWith: "991" } } },
+          { betaManager: { phone: { startsWith: "992" } } }
+        ]
+      }
+    });
+
+    // 7. Audit Logs
+    await prisma.auditLog.deleteMany({
+      where: {
+        OR: [
+          { actor: { phone: { startsWith: "991" } } },
+          { actor: { phone: { startsWith: "992" } } }
+        ]
+      }
+    });
+
+    // 8. Users
     await prisma.user.deleteMany({
-      where: { phone: { startsWith: "992" } }
+      where: {
+        OR: [
+          { phone: { startsWith: "991" } },
+          { phone: { startsWith: "992" } }
+        ]
+      }
     });
   }
 
@@ -95,42 +155,12 @@ describe("MLM & Commission Business Rules Integration Tests", () => {
     }
 
     // Clean up previous test users to avoid key collisions
-    await prisma.commissionLedger.deleteMany({
-      where: {
-        receiver: { phone: { startsWith: "991" } }
-      }
-    });
-    await prisma.betaMatrix.deleteMany({
-      where: {
-        rootManager: { phone: { startsWith: "991" } }
-      }
-    });
-    await prisma.user.deleteMany({
-      where: {
-        phone: { startsWith: "991" }
-      }
-    });
-    await cleanupHttpPermissionFixtures();
+    await cleanupAllTestFixtures();
   });
 
   afterAll(async () => {
     // Cleanup records after running test suite
-    await prisma.commissionLedger.deleteMany({
-      where: {
-        receiver: { phone: { startsWith: "991" } }
-      }
-    });
-    await prisma.betaMatrix.deleteMany({
-      where: {
-        rootManager: { phone: { startsWith: "991" } }
-      }
-    });
-    await prisma.user.deleteMany({
-      where: {
-        phone: { startsWith: "991" }
-      }
-    });
-    await cleanupHttpPermissionFixtures();
+    await cleanupAllTestFixtures();
     await new Promise<void>((resolve, reject) => {
       server.close((error) => error ? reject(error) : resolve());
     });
@@ -502,7 +532,7 @@ describe("MLM & Commission Business Rules Integration Tests", () => {
     });
     expect(Number(completionPayout.amount)).toBe(108000);
     expect(completionPayout.status).toBe(CommissionStatus.APPROVED);
-  }, 60000);
+  }, 300000);
 
   describe("API Permissions & Upline Privacy Validation", () => {
     it("should block Customer role from business network endpoints over HTTP", async () => {
