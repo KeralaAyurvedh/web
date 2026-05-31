@@ -21,6 +21,9 @@ function storagePath(root: string) {
 }
 
 export function createApp() {
+  if (config.nodeEnv !== "production") {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+  }
   const app = express();
 
   app.set("trust proxy", 1);

@@ -44,7 +44,8 @@ ordersRouter.get("/", requireAuth, async (req, res) => {
           product: {
             select: {
               id: true,
-              name: true
+              name: true,
+              imageUrl: true
             }
           }
         }
@@ -53,7 +54,28 @@ ordersRouter.get("/", requireAuth, async (req, res) => {
     orderBy: { createdAt: "desc" }
   });
 
-  return res.json({ orders });
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
+  const formatImageUrl = (url?: string | null) => {
+    if (!url) return url;
+    if (url.startsWith("http")) return url;
+    const cleanUrl = url.startsWith("/") ? url : `/${url}`;
+    return `${baseUrl}${cleanUrl}`;
+  };
+
+  const mappedOrders = orders.map((order) => ({
+    ...order,
+    items: order.items.map((item) => ({
+      ...item,
+      product: item.product
+        ? {
+            ...item.product,
+            imageUrl: formatImageUrl(item.product.imageUrl)
+          }
+        : null
+    }))
+  }));
+
+  return res.json({ orders: mappedOrders });
 });
 
 ordersRouter.post("/", requireAuth, async (req, res) => {

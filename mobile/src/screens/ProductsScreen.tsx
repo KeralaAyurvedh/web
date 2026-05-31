@@ -29,6 +29,7 @@ import {
 } from "../constants/guides";
 
 const logoImage = require("../../assets/logo.png");
+const placeholderImage = require("../../assets/placeholder.png");
 
 type SelectedProductImage = {
   uri: string;
@@ -157,11 +158,13 @@ export function ProductsScreen({
           availability: productAvailability
         })
       });
+      let finalProduct = result.product;
       if (selectedProductImage) {
-        await uploadProductImage(result.product.id, selectedProductImage);
+        finalProduct = await uploadProductImage(result.product.id, selectedProductImage);
       }
       resetProductForm();
       await loadProducts();
+      setSelectedProduct(finalProduct);
       Alert.alert("Product created", "The product is now visible in the catalog.");
     } catch (error) {
       Alert.alert("Create product", error instanceof Error ? error.message : "Could not create product");
@@ -263,7 +266,7 @@ export function ProductsScreen({
     }
   }
 
-  async function uploadProductImage(productId: string, image: SelectedProductImage) {
+  async function uploadProductImage(productId: string, image: SelectedProductImage): Promise<Product> {
     const base64 = await FileSystem.readAsStringAsync(image.uri, {
       encoding: "base64"
     });
@@ -277,6 +280,7 @@ export function ProductsScreen({
       })
     });
     setProductImageUrl(result.imageUrl);
+    return result.product;
   }
 
   async function deactivateProduct(productId: string) {
@@ -411,7 +415,6 @@ export function ProductsScreen({
             onSelect={setProductCategory}
             renderLabel={(category) => category.id}
           />
-          <Input label="Image URL" value={productImageUrl} onChangeText={setProductImageUrl} />
           <View style={styles.imageUploadBox}>
             <View style={styles.imageUploadTextBlock}>
               <Text style={styles.inputLabel}>Upload image</Text>
@@ -654,7 +657,7 @@ function ProductDetailCard({
               }}
             />
           ) : (
-            <Image source={logoImage} style={styles.detailFallbackImage} resizeMode="contain" />
+            <Image source={placeholderImage} style={styles.detailFallbackImage} resizeMode="contain" />
           )}
         </ScrollView>
       </View>
@@ -757,7 +760,7 @@ function ProductListCard({
             }}
           />
         ) : (
-          <Image source={logoImage} style={styles.productLogoFallback} resizeMode="contain" />
+          <Image source={placeholderImage} style={styles.productLogoFallback} resizeMode="contain" />
         )}
       </View>
       <View style={styles.productInfo}>

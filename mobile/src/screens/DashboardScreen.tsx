@@ -34,6 +34,7 @@ import {
 import { SectionHeader, Input, TextArea, OptionList, PrimaryButton } from "../components/UI/FormControls";
 
 const logoImage = require("../../assets/logo.png");
+const placeholderImage = require("../../assets/placeholder.png");
 const bannerImages = [
   require("../../assets/banner1.jpeg"),
   require("../../assets/banner2.jpeg"),
@@ -546,7 +547,7 @@ function HomeProductCard({ product, onView }: { product: Product; onView: () => 
             }}
           />
         ) : (
-          <Image source={logoImage} style={styles.homeProductFallbackImage as any} resizeMode="contain" />
+          <Image source={placeholderImage} style={styles.homeProductFallbackImage as any} resizeMode="contain" />
         )}
       </View>
       <View style={styles.homeProductInfo}>
@@ -760,7 +761,7 @@ function ProductDetailCard({
             }}
           />
         ) : (
-          <Image source={logoImage} style={styles.detailFallbackImage as any} resizeMode="contain" />
+          <Image source={placeholderImage} style={styles.detailFallbackImage as any} resizeMode="contain" />
         )}
       </View>
       <Text style={styles.productCategoryText}>{product.category}</Text>

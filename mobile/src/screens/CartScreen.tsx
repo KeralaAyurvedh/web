@@ -15,6 +15,7 @@ import { apiRequest, formatMoney, mediaUrl } from "../services/api";
 import { Input, OptionList, PrimaryButton, SectionHeader, EmptyState } from "../components/UI/FormControls";
 
 const logoImage = require("../../assets/logo.png");
+const placeholderImage = require("../../assets/placeholder.png");
 
 export function CartScreen({
   session,
@@ -361,7 +362,7 @@ function CartItemCard({
             }}
           />
         ) : (
-          <Image source={logoImage} style={styles.fallbackImage} resizeMode="contain" />
+          <Image source={placeholderImage} style={styles.fallbackImage} resizeMode="contain" />
         )}
       </View>
 
