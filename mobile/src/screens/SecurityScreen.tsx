@@ -31,10 +31,13 @@ export function SecurityScreen({
   const [loginIdPassword, setLoginIdPassword] = useState("");
   const [newLoginId, setNewLoginId] = useState(session.user.phone);
   const [loading, setLoading] = useState(false);
-
   async function changePassword() {
     if (!currentPassword || !newPassword) {
       Alert.alert("Password", "Enter both current password and new password.");
+      return;
+    }
+    if (currentPassword === newPassword) {
+      Alert.alert("Password", "New password cannot be the same as your current password. Please choose a new password.");
       return;
     }
     const passwordError = validateStrongPassword(newPassword);

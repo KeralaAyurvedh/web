@@ -122,6 +122,10 @@ authRouter.post("/change-password", requireAuth, rateLimit({ keyPrefix: "change-
     return res.status(401).json({ error: "Current password is incorrect" });
   }
 
+  if (parsed.data.currentPassword === parsed.data.newPassword) {
+    return res.status(400).json({ error: "New password cannot be the same as your current password. Please choose a new password." });
+  }
+
   const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
   await prisma.user.update({
     where: { id: user.id },
@@ -249,6 +253,11 @@ authRouter.post("/reset-password-otp", rateLimit({ keyPrefix: "reset-password-ot
   const matches = await bcrypt.compare(parsed.data.otp, user.resetPasswordToken);
   if (!matches) {
     return res.status(400).json({ error: "Invalid verification code" });
+  }
+
+  const isSame = await bcrypt.compare(parsed.data.newPassword, user.passwordHash);
+  if (isSame) {
+    return res.status(400).json({ error: "New password cannot be the same as your current password. Please choose a new password." });
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);

@@ -13,6 +13,7 @@ import {
 import { Session, Role, TreePerson, TreeLayoutNode } from "../constants/types";
 import { apiRequest, formatRole } from "../services/api";
 import { colors } from "../constants/theme";
+import { SectionHeader } from "../components/UI/FormControls";
 
 export function MlmTreeScreen({ session }: { session: Session }) {
   const [root, setRoot] = useState<TreePerson | null>(null);
@@ -176,16 +177,7 @@ export function MlmTreeScreen({ session }: { session: Session }) {
 
   return (
     <ScrollView contentContainerStyle={styles.treeScreenContent}>
-      <View style={styles.treeHeroHeader}>
-        <View>
-          <Text style={styles.homeSectionKicker}>Business Network</Text>
-          <Text style={styles.treeScreenTitle}>Representative</Text>
-          <Text style={styles.treeScreenSubtitle}>View your business network structure</Text>
-        </View>
-        <Pressable style={styles.treeRefreshButton} onPress={loadTree}>
-          <Text style={styles.treeRefreshText}>Refresh</Text>
-        </Pressable>
-      </View>
+      <SectionHeader title="Structure" action="Refresh" onAction={loadTree} />
 
       <View style={styles.treeStatsRow}>
         <TreeStatChip label="Total Members" value={stats.total} />
@@ -196,9 +188,15 @@ export function MlmTreeScreen({ session }: { session: Session }) {
 
       <View style={styles.treeToolbarCard}>
         <View style={styles.treeToolbarRow}>
-          <View style={[styles.treeToolButton, { width: 60, borderWidth: 0, backgroundColor: "transparent" }]}>
+          <Pressable style={styles.treeToolButton} onPress={() => setClampedZoom(zoom + 0.15)}>
+            <Text style={styles.treeToolText}>+</Text>
+          </Pressable>
+          <View style={[styles.treeToolButton, { width: 50, borderWidth: 0, backgroundColor: "transparent" }]}>
             <Text style={styles.treeZoomText}>{Math.round(zoom * 100)}%</Text>
           </View>
+          <Pressable style={styles.treeToolButton} onPress={() => setClampedZoom(zoom - 0.15)}>
+            <Text style={styles.treeToolText}>-</Text>
+          </Pressable>
           <Pressable style={styles.treeToolButtonWide} onPress={() => setClampedZoom(fitZoom)}>
             <Text style={styles.treeToolText}>Fit</Text>
           </Pressable>
@@ -302,7 +300,7 @@ export function MlmTreeScreen({ session }: { session: Session }) {
 }
 
 const TREE_NODE_WIDTH = 176;
-const TREE_NODE_HEIGHT = 104;
+const TREE_NODE_HEIGHT = 124;
 const TREE_CUSTOMER_HEIGHT = 86;
 const TREE_LEVEL_GAP = 118;
 const TREE_SIBLING_GAP = 34;

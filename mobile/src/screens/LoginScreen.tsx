@@ -245,7 +245,7 @@ export function LoginScreen({ onLogin }: { onLogin: (session: Session) => void }
           <View style={styles.loginPanel}>
             <View style={styles.panelHeader}>
               <Image source={logoImage} style={styles.panelLogo} resizeMode="cover" />
-              <Text style={styles.panelBrandName}>kerala ayurvedh</Text>
+              <Text style={styles.panelBrandName}>Kerala Ayurvedh</Text>
             </View>
 
             {showForgotPassword ? (
@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "900",
     letterSpacing: 1.5,
-    textTransform: "lowercase",
+    textTransform: "none",
     textAlign: "center"
   },
   cardTitle: {
