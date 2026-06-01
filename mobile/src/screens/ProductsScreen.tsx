@@ -11,7 +11,7 @@ import {
   StyleSheet
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { Session, Product, User, StockAdjustment, ProductAvailability, Order, TabKey } from "../constants/types";
 import { apiRequest, formatMoney, mediaUrl, confirmAction } from "../services/api";
 import { colors } from "../constants/theme";

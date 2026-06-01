@@ -10,7 +10,7 @@ import {
   StyleSheet
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { Session, Handover, User, Order, PaymentHandoverStatusValue, Role } from "../constants/types";
 import { apiRequest, formatMoney, formatBytes, mediaUrl } from "../services/api";
 import { colors } from "../constants/theme";
