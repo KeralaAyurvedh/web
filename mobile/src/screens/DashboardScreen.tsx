@@ -1153,12 +1153,12 @@ const styles = StyleSheet.create({
   brandIntroTitle: {
     fontSize: 16,
     fontWeight: "800",
-    color: colors.slate950,
+    color: colors.slate900,
     marginBottom: 4
   },
   brandIntroText: {
     fontSize: 13,
-    color: colors.slate600,
+    color: colors.slate500,
     lineHeight: 19
   },
   categoryRailContainer: {
@@ -1313,7 +1313,7 @@ const styles = StyleSheet.create({
   trustHeader: {
     fontSize: 17,
     fontWeight: "800",
-    color: colors.slate950,
+    color: colors.slate900,
     marginBottom: 12,
     letterSpacing: 0.3
   },
@@ -1351,7 +1351,7 @@ const styles = StyleSheet.create({
   },
   trustTitle: {
     fontSize: 13,
-    color: colors.slate800,
+    color: colors.slate700,
     fontWeight: "700",
     lineHeight: 18,
     flex: 1
@@ -1403,7 +1403,7 @@ const styles = StyleSheet.create({
   reviewsHeader: {
     fontSize: 18,
     fontWeight: "800",
-    color: colors.slate950,
+    color: colors.slate900,
     paddingHorizontal: 16,
     marginBottom: 12,
     letterSpacing: 0.3

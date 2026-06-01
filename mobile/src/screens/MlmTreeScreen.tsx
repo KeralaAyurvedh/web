@@ -25,7 +25,7 @@ export function MlmTreeScreen({ session }: { session: Session }) {
   const initialZoomRef = useRef<number>(0.65);
   const [search, setSearch] = useState("");
   const [matchIndex, setMatchIndex] = useState(0);
-  const [roleFilter, setRoleFilter] = useState<Role | "ALL" | "ACTIVE_ONLY">("ALL");
+  const [roleFilter, setRoleFilter] = useState<string>("ALL");
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -79,6 +79,23 @@ export function MlmTreeScreen({ session }: { session: Session }) {
     status: session.user.status,
     referralCode: session.user.referralCode
   };
+
+  const allowedFilters = useMemo(() => {
+    const userRole = session.user.role;
+    if (userRole === "ADMIN") {
+      return ["ALL", "A3", "LEVEL_1", "LEVEL_2", "CUSTOMER", "ACTIVE_ONLY"];
+    }
+    if (userRole === "MANAGER" || userRole === "BETA_MANAGER") {
+      return ["ALL", "LEVEL_1", "LEVEL_2", "CUSTOMER", "ACTIVE_ONLY"];
+    }
+    if (userRole === "LEVEL_1") {
+      return ["ALL", "LEVEL_2", "CUSTOMER", "ACTIVE_ONLY"];
+    }
+    if (userRole === "LEVEL_2") {
+      return ["ALL", "CUSTOMER", "ACTIVE_ONLY"];
+    }
+    return ["ALL", "CUSTOMER", "ACTIVE_ONLY"];
+  }, [session.user.role]);
 
   const enrichedUsers = useMemo(() => {
     const byId = new Map<string, TreePerson>(users.map((user) => [user.id, user]));
@@ -258,10 +275,10 @@ export function MlmTreeScreen({ session }: { session: Session }) {
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.treeFilterRail}>
-        {["ALL", "MANAGER", "BETA_MANAGER", "LEVEL_1", "LEVEL_2", "CUSTOMER", "ACTIVE_ONLY"].map((filter) => {
+        {allowedFilters.map((filter) => {
           const selected = roleFilter === filter;
           return (
-            <Pressable key={filter} style={[styles.treeFilterChip, selected && styles.treeFilterChipActive]} onPress={() => setRoleFilter(filter as Role | "ALL" | "ACTIVE_ONLY")}>
+            <Pressable key={filter} style={[styles.treeFilterChip, selected && styles.treeFilterChipActive]} onPress={() => setRoleFilter(filter)}>
               <Text style={[styles.treeFilterText, selected && styles.treeFilterTextActive]}>
                 {filter === "ALL" ? "All" : filter === "ACTIVE_ONLY" ? "Active Only" : formatRole(filter)}
               </Text>
@@ -387,7 +404,7 @@ function TreeCanvas({
   onSelect
 }: {
   layout: TreeLayoutNode;
-  roleFilter: Role | "ALL" | "ACTIVE_ONLY";
+  roleFilter: string;
   activeMatchId?: string;
   searchTerm: string;
   collapsedIds: Set<string>;
@@ -420,9 +437,10 @@ function TreeCanvas({
   );
 }
 
-function treeNodeMatchesFilter(person: TreePerson, filter: Role | "ALL" | "ACTIVE_ONLY") {
+function treeNodeMatchesFilter(person: TreePerson, filter: string) {
   if (filter === "ALL") return true;
   if (filter === "ACTIVE_ONLY") return person.status === "ACTIVE" || person.role === "COMPANY";
+  if (filter === "A3") return person.role === "MANAGER" || person.role === "BETA_MANAGER" || person.role === "COMPANY";
   return person.role === filter || person.role === "COMPANY";
 }
 
