@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { ProductAvailability, Role } from "@prisma/client";
+import { FileAssetCategory, ProductAvailability, Role } from "@prisma/client";
 import { z } from "zod";
 import { requireAuth, requireRoles } from "../middlewares/auth";
 import { prisma } from "../utils/prisma";
@@ -27,9 +27,26 @@ productsRouter.get("/", requireAuth, async (req, res) => {
     where: req.user!.role === Role.ADMIN ? {} : { isActive: true },
     orderBy: { createdAt: "desc" }
   });
+  const productImageFiles = await prisma.fileAsset.findMany({
+    where: {
+      category: FileAssetCategory.PRODUCT_IMAGE,
+      relatedEntityType: "Product",
+      relatedEntityId: { in: products.map((product) => product.id) }
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, relatedEntityId: true }
+  });
+  const imageFileByProductId = new Map<string, string>();
+  for (const file of productImageFiles) {
+    if (file.relatedEntityId && !imageFileByProductId.has(file.relatedEntityId)) {
+      imageFileByProductId.set(file.relatedEntityId, file.id);
+    }
+  }
 
   const baseUrl = `${req.protocol}://${req.get("host")}`;
-  const formatImageUrl = (url?: string | null) => {
+  const formatImageUrl = (productId: string, url?: string | null) => {
+    const fileId = imageFileByProductId.get(productId);
+    if (fileId) return `${baseUrl}/files/${fileId}/raw`;
     if (!url) return url;
     if (url.startsWith("http")) return url;
     const cleanUrl = url.startsWith("/") ? url : `/${url}`;
@@ -39,7 +56,7 @@ productsRouter.get("/", requireAuth, async (req, res) => {
   return res.json({
     products: products.map((product) => ({
       ...product,
-      imageUrl: formatImageUrl(product.imageUrl),
+      imageUrl: formatImageUrl(product.id, product.imageUrl),
       stock: req.user!.role === Role.ADMIN ? product.stock : undefined,
       availability: product.availability === ProductAvailability.AVAILABLE && product.stock <= 0
         ? ProductAvailability.OUT_OF_STOCK
@@ -56,9 +73,19 @@ productsRouter.get("/:id", requireAuth, async (req, res) => {
   if (!product || (req.user!.role !== Role.ADMIN && !product.isActive)) {
     return res.status(404).json({ error: "Product not found" });
   }
+  const productImageFile = await prisma.fileAsset.findFirst({
+    where: {
+      category: FileAssetCategory.PRODUCT_IMAGE,
+      relatedEntityType: "Product",
+      relatedEntityId: product.id
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true }
+  });
 
   const baseUrl = `${req.protocol}://${req.get("host")}`;
   const formatImageUrl = (url?: string | null) => {
+    if (productImageFile) return `${baseUrl}/files/${productImageFile.id}/raw`;
     if (!url) return url;
     if (url.startsWith("http")) return url;
     const cleanUrl = url.startsWith("/") ? url : `/${url}`;

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { ProductAvailability, Role } from "@prisma/client";
+import { FileAssetCategory, ProductAvailability, Role } from "@prisma/client";
 import { z } from "zod";
 import { requireAuth, requireRoles } from "../middlewares/auth";
 import { createCommissionsAfterPaymentConfirmation } from "../services/commissionRules";
@@ -55,7 +55,26 @@ ordersRouter.get("/", requireAuth, async (req, res) => {
   });
 
   const baseUrl = `${req.protocol}://${req.get("host")}`;
-  const formatImageUrl = (url?: string | null) => {
+  const productIds = orders.flatMap((order) => order.items.map((item) => item.product?.id).filter((id): id is string => Boolean(id)));
+  const productImageFiles = await prisma.fileAsset.findMany({
+    where: {
+      category: FileAssetCategory.PRODUCT_IMAGE,
+      relatedEntityType: "Product",
+      relatedEntityId: { in: productIds }
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, relatedEntityId: true }
+  });
+  const imageFileByProductId = new Map<string, string>();
+  for (const file of productImageFiles) {
+    if (file.relatedEntityId && !imageFileByProductId.has(file.relatedEntityId)) {
+      imageFileByProductId.set(file.relatedEntityId, file.id);
+    }
+  }
+
+  const formatImageUrl = (productId: string, url?: string | null) => {
+    const fileId = imageFileByProductId.get(productId);
+    if (fileId) return `${baseUrl}/files/${fileId}/raw`;
     if (!url) return url;
     if (url.startsWith("http")) return url;
     const cleanUrl = url.startsWith("/") ? url : `/${url}`;
@@ -69,7 +88,7 @@ ordersRouter.get("/", requireAuth, async (req, res) => {
       product: item.product
         ? {
             ...item.product,
-            imageUrl: formatImageUrl(item.product.imageUrl)
+            imageUrl: formatImageUrl(item.product.id, item.product.imageUrl)
           }
         : null
     }))

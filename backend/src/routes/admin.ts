@@ -1696,13 +1696,11 @@ adminRouter.post("/products/:id/image", async (req, res) => {
     relatedEntityId: existingProduct.id
   });
 
-  if (!fileAsset.publicUrl) {
-    return res.status(500).json({ error: "Product image URL was not created" });
-  }
+  const imageUrl = `/files/${fileAsset.id}/raw`;
 
   const product = await prisma.product.update({
     where: { id: existingProduct.id },
-    data: { imageUrl: fileAsset.publicUrl }
+    data: { imageUrl }
   });
 
   await writeAuditLog({
@@ -1710,10 +1708,10 @@ adminRouter.post("/products/:id/image", async (req, res) => {
     action: "PRODUCT_IMAGE_UPLOADED",
     entityType: "Product",
     entityId: product.id,
-    metadata: { imageUrl: fileAsset.publicUrl, fileAssetId: fileAsset.id }
+    metadata: { imageUrl, fileAssetId: fileAsset.id }
   });
 
-  return res.json({ product, imageUrl: fileAsset.publicUrl, fileAsset });
+  return res.json({ product, imageUrl, fileAsset });
 });
 
 adminRouter.get("/files/:fileId/view-url", async (req, res) => {

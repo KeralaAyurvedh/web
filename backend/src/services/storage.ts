@@ -316,6 +316,54 @@ export async function getSignedViewUrl(fileId: string) {
   return { file, url, expiresAt };
 }
 
+export async function getRawFileAccess(fileId: string, expires?: string, signature?: string) {
+  const file = await prisma.fileAsset.findUnique({ where: { id: fileId } });
+  if (!file) return null;
+
+  if (file.isPrivate && (!expires || !signature || !verifyLocalFileSignature(fileId, expires, signature))) {
+    return { file, forbidden: true as const };
+  }
+
+  const relativeKey = file.key.replace(/^private\//, "").replace(/^public\//, "");
+  if (file.storageProvider === FileAssetStorageProvider.LOCAL) {
+    const root = file.isPrivate ? config.storage.localPrivateUploadDir : config.storage.localUploadDir;
+    return {
+      file,
+      absolutePath: storagePath(root, relativeKey)
+    };
+  }
+
+  const expiresSeconds = config.storage.signedUrlExpiresSeconds;
+  if (file.storageProvider === FileAssetStorageProvider.R2) {
+    return { file, url: presignedR2Url(file.key, expiresSeconds) };
+  }
+  if (file.storageProvider === FileAssetStorageProvider.SUPABASE) {
+    assertSupabaseConfig();
+    const response = await fetch(
+      `${supabaseStorageBaseUrl()}/storage/v1/object/sign/${encodeRfc3986(config.storage.supabaseBucket!)}/${encodedStorageKey(file.key)}`,
+      {
+        method: "POST",
+        headers: supabaseHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ expiresIn: expiresSeconds })
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`Supabase signed URL failed with status ${response.status}`);
+    }
+    const body = await response.json() as { signedURL?: string; signedUrl?: string };
+    const signedPath = body.signedURL ?? body.signedUrl;
+    if (!signedPath) {
+      throw new Error("Supabase signed URL was not returned");
+    }
+    return {
+      file,
+      url: signedPath.startsWith("http") ? signedPath : `${supabaseStorageBaseUrl()}${signedPath}`
+    };
+  }
+
+  return null;
+}
+
 export async function getLocalPrivateFilePath(fileId: string) {
   const file = await prisma.fileAsset.findUnique({ where: { id: fileId } });
   if (!file || file.storageProvider !== FileAssetStorageProvider.LOCAL || !file.isPrivate) return null;
