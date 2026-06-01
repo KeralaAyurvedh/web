@@ -231,17 +231,6 @@ export function DashboardScreen({ session, onNavigate }: { session: Session; onN
         <Text style={styles.announcementText}>Authentic Ayurvedh Wellness Products</Text>
       </View>
 
-      <View style={styles.homeWelcome}>
-        <View>
-          <Text style={styles.homeGreeting}>Hi, {firstName}</Text>
-          <Text style={styles.homeMeta}>Welcome back to Kerala Ayurvedh</Text>
-        </View>
-        <View style={styles.homeRoleBadge}>
-          <Text style={styles.homeRoleBadgeText}>{formatRole(session.user.role)}</Text>
-        </View>
-      </View>
-
-      <RoleDashboardSummary role={session.user.role} stats={roleDashboard} loading={loadingDashboard} onNavigate={onNavigate} />
 
       <View style={{ position: "relative", zIndex: 999 }}>
         <View style={styles.searchRow}>
@@ -323,32 +312,7 @@ export function DashboardScreen({ session, onNavigate }: { session: Session; onN
         </View>
       )}
 
-      <TrustPrinciples />
-      <WellnessHighlight />
       <CustomerReviews />
-
-      <BusinessQuickLinks session={session} onNavigate={onNavigate} />
-
-      {(session.user.role === "ADMIN" || session.user.role === "MANAGER" || session.user.role === "BETA_MANAGER") && (
-        <View style={styles.homeBusinessCard}>
-          <SectionHeader title="Beta matrix progress" />
-          {loadingMatrix && <ActivityIndicator color={colors.brand600} />}
-          {matrices.length === 0 && !loadingMatrix ? (
-            <Text style={styles.mutedText}>No Beta Matrix found for this account yet.</Text>
-          ) : (
-            matrices.map((matrix) => (
-              <View key={matrix.id} style={styles.matrixBox}>
-                <Text style={styles.listTitle}>{matrix.betaManager?.name ?? "Beta Manager"}</Text>
-                <Text style={styles.listSubtitle}>
-                  {matrix.confirmedCustomers} / {matrix.requiredCustomers} confirmed customers
-                </Text>
-                <Text style={styles.productPrice}>Completion: {formatMoney(matrix.completionAmount)}</Text>
-                <Text style={styles.listRight}>{matrix.status}</Text>
-              </View>
-            ))
-          )}
-        </View>
-      )}
 
       <View style={styles.homeFooter}>
         <Text style={styles.footerSupport}>Support: support@keralaayurvedh.com</Text>
