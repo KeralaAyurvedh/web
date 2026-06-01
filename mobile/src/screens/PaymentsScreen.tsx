@@ -10,7 +10,7 @@ import {
   StyleSheet
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system/legacy";
+import { File } from "expo-file-system";
 import { Session, Handover, User, Order, PaymentHandoverStatusValue, Role } from "../constants/types";
 import { apiRequest, formatMoney, formatBytes, mediaUrl } from "../services/api";
 import { colors } from "../constants/theme";
@@ -191,9 +191,8 @@ export function PaymentsScreen({ session }: { session: Session }) {
         return;
       }
 
-      const base64 = await FileSystem.readAsStringAsync(file.uri, {
-        encoding: "base64"
-      });
+      const fileObj = new File(file.uri);
+      const base64 = await fileObj.base64();
 
       await apiRequest<{ handover: Handover }>(`/payments/handovers/${handoverId}/proof`, {
         method: "POST",

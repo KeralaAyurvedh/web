@@ -10,7 +10,7 @@ import {
   Share,
   StyleSheet
 } from "react-native";
-import * as FileSystem from "expo-file-system/legacy";
+import { File, Paths } from "expo-file-system";
 import {
   Session,
   Role,
@@ -799,9 +799,9 @@ export function AdminScreen({
       }
       const csvText = await response.text();
 
-      const filename = `${type}_export_${Date.now()}.csv`;
-      const fileUri = ((FileSystem as any).documentDirectory ?? "") + filename;
-      await FileSystem.writeAsStringAsync(fileUri, csvText, { encoding: "utf8" });
+      const file = new File(Paths.document, `${type}_export_${Date.now()}.csv`);
+      await file.write(csvText);
+      const fileUri = file.uri;
 
       await Share.share({
         url: fileUri,

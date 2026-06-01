@@ -11,7 +11,7 @@ import {
   StyleSheet
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system/legacy";
+import { File } from "expo-file-system";
 import { Session, Product, User, StockAdjustment, ProductAvailability, Order, TabKey } from "../constants/types";
 import { apiRequest, formatMoney, mediaUrl, confirmAction } from "../services/api";
 import { colors } from "../constants/theme";
@@ -267,9 +267,8 @@ export function ProductsScreen({
   }
 
   async function uploadProductImage(productId: string, image: SelectedProductImage): Promise<Product> {
-    const base64 = await FileSystem.readAsStringAsync(image.uri, {
-      encoding: "base64"
-    });
+    const file = new File(image.uri);
+    const base64 = await file.base64();
     const result = await apiRequest<{ product: Product; imageUrl: string }>(`/admin/products/${productId}/image`, {
       method: "POST",
       headers: { Authorization: `Bearer ${session.token}` },
