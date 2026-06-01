@@ -6,6 +6,18 @@ import { prisma } from "../utils/prisma";
 
 export const productsRouter = Router();
 
+function isValidProductImageUrl(value: string) {
+  if (!value) return true;
+  if (value.startsWith("/uploads/") || value.startsWith("/files/")) return true;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+    return /\.(jpe?g|png|webp)$/i.test(url.pathname) || url.pathname.startsWith("/uploads/") || url.pathname.startsWith("/files/");
+  } catch {
+    return false;
+  }
+}
+
 const productSchema = z.object({
   name: z.string().min(2),
   category: z.string().min(2).default("Wellness"),
@@ -16,7 +28,9 @@ const productSchema = z.object({
   benefits: z.string().optional().default(""),
   size: z.string().optional().default(""),
   price: z.coerce.number().positive(),
-  imageUrl: z.string().trim().optional().transform((value) => value === "" ? undefined : value),
+  imageUrl: z.string().trim().optional()
+    .transform((value) => value === "" ? undefined : value)
+    .refine((value) => !value || isValidProductImageUrl(value), "Image URL must be a direct JPG, PNG, WebP, /uploads, or /files URL"),
   stock: z.coerce.number().int().min(0).default(0),
   availability: z.enum(ProductAvailability).default(ProductAvailability.AVAILABLE),
   isActive: z.boolean().optional()
