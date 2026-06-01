@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ScrollView, View, Text, StyleSheet, Clipboard, Alert, Pressable, ActivityIndicator, Modal, Linking } from "react-native";
+import { ScrollView, View, Text, StyleSheet, Clipboard, Alert, Pressable, ActivityIndicator, Modal, Linking, RefreshControl } from "react-native";
 import { Session, User, Role } from "../constants/types";
 import { colors } from "../constants/theme";
 import { SectionHeader, Input, TextArea, OptionList, PrimaryButton } from "../components/UI/FormControls";
@@ -70,7 +70,7 @@ export function ProfileScreen({ session, onSessionUpdate }: { session: Session; 
     }
   }
 
-  async function refreshProfile() {
+  async function refreshProfile(silent = false) {
     try {
       setRefreshing(true);
       const res = await apiRequest<{ user: User }>("/users/me", {
@@ -79,12 +79,20 @@ export function ProfileScreen({ session, onSessionUpdate }: { session: Session; 
       if (onSessionUpdate) {
         onSessionUpdate({ ...session, user: res.user });
       }
-      Alert.alert("Refreshed", "Your profile details have been updated.");
+      if (!silent) {
+        Alert.alert("Refreshed", "Your profile details have been updated.");
+      }
     } catch (error) {
-      Alert.alert("Error", error instanceof Error ? error.message : "Could not refresh profile");
+      if (!silent) {
+        Alert.alert("Error", error instanceof Error ? error.message : "Could not refresh profile");
+      }
     } finally {
       setRefreshing(false);
     }
+  }
+
+  async function handleRefresh() {
+    await refreshProfile(true);
   }
 
   async function handleUpgradeSubmit() {
@@ -146,8 +154,18 @@ export function ProfileScreen({ session, onSessionUpdate }: { session: Session; 
   }, [session.user.role]);
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <SectionHeader title="Profile" action={refreshing ? "Refreshing..." : "Refresh"} onAction={refreshProfile} />
+    <ScrollView
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          colors={[colors.brand700]}
+          tintColor={colors.brand700}
+        />
+      }
+    >
+      <SectionHeader title="Profile" />
       
       <View style={styles.card}>
         <View style={styles.moreProfileCardCompact}>
@@ -191,7 +209,7 @@ export function ProfileScreen({ session, onSessionUpdate }: { session: Session; 
         <View style={styles.upgradeCard}>
           <Text style={styles.upgradeTitle}>Become a Kerala Ayurvedh Partner</Text>
           <Text style={styles.upgradeText}>
-            Earn direct referral commissions of up to ₹1,000 per order, passives of ₹500, build your representative network, and unlock high-paying wellness rewards by promoting our weight loss powders!
+            Earn direct referral commissions of up to ₹1,500 per join, passives of ₹500, build your business network, and unlock high-paying wellness rewards by promoting our weight loss powders!
           </Text>
 
           {loadingRequest ? (

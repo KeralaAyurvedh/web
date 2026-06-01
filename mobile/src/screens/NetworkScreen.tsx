@@ -6,7 +6,8 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
-  StyleSheet
+  StyleSheet,
+  RefreshControl
 } from "react-native";
 import { Session, User, Role, MemberApplication } from "../constants/types";
 import { apiRequest, formatRole } from "../services/api";
@@ -30,6 +31,18 @@ export function NetworkScreen({ session }: { session: Session }) {
   const [downline, setDownline] = useState<User[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    try {
+      setRefreshing(true);
+      await loadNetwork();
+    } catch {
+      // Quiet fail
+    } finally {
+      setRefreshing(false);
+    }
+  }
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -200,8 +213,18 @@ export function NetworkScreen({ session }: { session: Session }) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <SectionHeader title="Network" action="Refresh" onAction={loadNetwork} />
+    <ScrollView
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          colors={[colors.brand700]}
+          tintColor={colors.brand700}
+        />
+      }
+    >
+      <SectionHeader title="Network" />
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{session.user.role === "ADMIN" ? "Create user" : "Submit member application"}</Text>
         <Text style={styles.mutedText}>
@@ -247,7 +270,7 @@ export function NetworkScreen({ session }: { session: Session }) {
             <OptionList
               items={sponsorOptions}
               selectedId={sponsorId}
-              emptyText={role === "BETA_MANAGER" ? "No eligible Manager has completed 216 confirmed customers yet." : "Tap Refresh to load possible sponsors."}
+              emptyText={role === "BETA_MANAGER" ? "No eligible Manager has completed 216 confirmed customers yet." : "Pull down to load possible sponsors."}
               onSelect={setSponsorId}
               renderLabel={(user: any) => `${user.name} - ${formatRole(user.role)} - ${user.phone}${role === "BETA_MANAGER" ? ` - ${betaEligibilityLabel(user)}` : ""}`}
             />

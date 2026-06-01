@@ -8,7 +8,8 @@ import {
   ActivityIndicator,
   useWindowDimensions,
   Modal,
-  StyleSheet
+  StyleSheet,
+  RefreshControl
 } from "react-native";
 import { Session, Role, TreePerson, TreeLayoutNode } from "../constants/types";
 import { apiRequest, formatRole } from "../services/api";
@@ -28,7 +29,19 @@ export function MlmTreeScreen({ session }: { session: Session }) {
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const { width } = useWindowDimensions();
+
+  async function handleRefresh() {
+    try {
+      setRefreshing(true);
+      await loadTree();
+    } catch {
+      // Quiet fail
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function loadTree() {
     try {
@@ -176,8 +189,18 @@ export function MlmTreeScreen({ session }: { session: Session }) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.treeScreenContent}>
-      <SectionHeader title="Structure" action="Refresh" onAction={loadTree} />
+    <ScrollView
+      contentContainerStyle={styles.treeScreenContent}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          colors={[colors.brand700]}
+          tintColor={colors.brand700}
+        />
+      }
+    >
+      <SectionHeader title="Structure" />
 
       <View style={styles.treeStatsRow}>
         <TreeStatChip label="Total Members" value={stats.total} />
@@ -288,7 +311,7 @@ export function MlmTreeScreen({ session }: { session: Session }) {
         </View>
       ) : null}
 
-      {session.user.role === "ADMIN" && <TreeLegend />}
+      <TreeLegend userRole={session.user.role} />
       <TreePersonDetailModal
         person={selectedPerson}
         childCount={selectedPerson ? enrichedChildrenBySponsor[selectedPerson.id]?.length ?? 0 : 0}
@@ -512,14 +535,31 @@ function TreeStatChip({ label, value }: { label: string; value: number }) {
   );
 }
 
-function TreeLegend() {
-  const items = [
-    { label: "Company", style: styles.legendCompany },
-    { label: "Manager", style: styles.legendManager },
-    { label: "Beta Manager", style: styles.legendBeta },
-    { label: "Representative", style: styles.legendLevel },
-    { label: "Customer", style: styles.legendCustomer }
-  ];
+function TreeLegend({ userRole }: { userRole: Role }) {
+  const items: Array<{ label: string; style: any }> = [];
+
+  if (userRole === "ADMIN" || userRole === "MANAGER" || userRole === "BETA_MANAGER") {
+    items.push(
+      { label: "Company", style: styles.legendCompany },
+      { label: "a3 (Manager)", style: styles.legendManager },
+      { label: "a3 (Beta Manager)", style: styles.legendBeta },
+      { label: "a2 (Main Pillar)", style: styles.legendLevel },
+      { label: "a1 (Downline)", style: styles.legendLevelTwo },
+      { label: "Customer", style: styles.legendCustomer }
+    );
+  } else if (userRole === "LEVEL_1") {
+    items.push(
+      { label: "a1 (Downline)", style: styles.legendLevelTwo },
+      { label: "Customer", style: styles.legendCustomer }
+    );
+  } else if (userRole === "LEVEL_2") {
+    items.push(
+      { label: "Customer", style: styles.legendCustomer }
+    );
+  }
+
+  if (items.length === 0) return null;
+
   return (
     <View style={styles.treeLegend}>
       <Text style={styles.detailSectionTitle}>Legend</Text>
@@ -539,7 +579,7 @@ function TreeLoadingState() {
   return (
     <View style={styles.treeStateCard}>
       <ActivityIndicator color={colors.brand700} />
-      <Text style={styles.treeStateTitle}>Loading Representative structure</Text>
+      <Text style={styles.treeStateTitle}>Loading business structure</Text>
       <Text style={styles.treeStateText}>Preparing your business network structure.</Text>
     </View>
   );
@@ -557,7 +597,7 @@ function EmptyTreeState() {
 function TreeErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <View style={styles.treeStateCard}>
-      <Text style={styles.errorTitle}>Unable to load Representative structure</Text>
+      <Text style={styles.errorTitle}>Unable to load business structure</Text>
       <Text style={styles.treeStateText}>{message}</Text>
       <Pressable style={styles.emptyActionButton} onPress={onRetry}>
         <Text style={styles.emptyActionText}>Retry</Text>
@@ -1078,6 +1118,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.brand200
+  },
+  legendLevelTwo: {
+    backgroundColor: "#fbfdfb",
+    borderWidth: 1,
+    borderColor: "#cfe4d3"
   },
   legendCustomer: {
     backgroundColor: colors.slate100

@@ -273,14 +273,14 @@ describe("MLM & Commission Business Rules Integration Tests", () => {
     });
     testLevel1Id = level1.id;
 
-    // Verify Manager gets 1000 when Level 1 joins
+    // Verify Manager gets 1500 when Level 1 joins
     await createCommissionsAfterPaymentConfirmation(prisma, level1.id);
     const comms1 = await prisma.commissionLedger.findMany({
       where: { sourceUserId: level1.id }
     });
     expect(comms1.length).toBe(1);
     expect(comms1[0].receiverId).toBe(manager.id);
-    expect(Number(comms1[0].amount)).toBe(1000);
+    expect(Number(comms1[0].amount)).toBe(1500);
     expect(comms1[0].type).toBe(CommissionType.DIRECT_LEVEL_1_JOIN);
 
     // Create Level 2 user
@@ -296,7 +296,7 @@ describe("MLM & Commission Business Rules Integration Tests", () => {
     });
     testLevel2Id = level2.id;
 
-    // Verify commissions for Level 2 joining: Level 1 gets 1000, Manager gets 500 passive
+    // Verify commissions for Level 2 joining: Level 1 gets 1500, Manager gets 500 passive
     await createCommissionsAfterPaymentConfirmation(prisma, level2.id);
     const comms2 = await prisma.commissionLedger.findMany({
       where: { sourceUserId: level2.id },
@@ -304,7 +304,7 @@ describe("MLM & Commission Business Rules Integration Tests", () => {
     });
     expect(comms2.length).toBe(2);
     expect(comms2[0].receiverId).toBe(level1.id);
-    expect(Number(comms2[0].amount)).toBe(1000);
+    expect(Number(comms2[0].amount)).toBe(1500);
     expect(comms2[1].receiverId).toBe(manager.id);
     expect(Number(comms2[1].amount)).toBe(500);
 
@@ -322,14 +322,17 @@ describe("MLM & Commission Business Rules Integration Tests", () => {
     });
     testCustomerId = customer.id;
 
-    // Verify Level 2 gets 1000 when Customer joins
+    // Verify Level 2 gets 1500 when Customer joins, Upline Level 1 gets 500 passive
     await createCommissionsAfterPaymentConfirmation(prisma, customer.id);
     const comms3 = await prisma.commissionLedger.findMany({
-      where: { sourceUserId: customer.id }
+      where: { sourceUserId: customer.id },
+      orderBy: { amount: "desc" }
     });
-    expect(comms3.length).toBe(1);
+    expect(comms3.length).toBe(2);
     expect(comms3[0].receiverId).toBe(level2.id);
-    expect(Number(comms3[0].amount)).toBe(1000);
+    expect(Number(comms3[0].amount)).toBe(1500);
+    expect(comms3[1].receiverId).toBe(level1.id);
+    expect(Number(comms3[1].amount)).toBe(500);
   });
 
   it("should prevent duplicate commission runs on the same user", async () => {
@@ -415,11 +418,13 @@ describe("MLM & Commission Business Rules Integration Tests", () => {
       }
     });
 
-    // Create Matrix
+    // Create Matrix pre-seeded with 214 confirmed customers to avoid sequential network roundtrips
     const matrix = await prisma.betaMatrix.create({
       data: {
         rootManagerId: rootManager.id,
-        betaManagerId: betaManager.id
+        betaManagerId: betaManager.id,
+        confirmedCustomers: 214,
+        pendingAmount: 214 * 500
       }
     });
 
@@ -467,11 +472,11 @@ describe("MLM & Commission Business Rules Integration Tests", () => {
 
     await createCommissionsAfterPaymentConfirmation(prisma, customer1.id);
 
-    // Verify 1000 immediately to Level 2, and 500 is PENDING/held for Root Manager
+    // Verify 1500 immediately to Level 2, and 500 is PENDING/held for Root Manager
     const commsL2 = await prisma.commissionLedger.findFirstOrThrow({
       where: { sourceUserId: customer1.id, receiverId: level2.id }
     });
-    expect(Number(commsL2.amount)).toBe(1000);
+    expect(Number(commsL2.amount)).toBe(1500);
     expect(commsL2.status).toBe(CommissionStatus.APPROVED);
 
     const commsHold = await prisma.commissionLedger.findFirstOrThrow({
@@ -481,41 +486,29 @@ describe("MLM & Commission Business Rules Integration Tests", () => {
     expect(commsHold.status).toBe(CommissionStatus.PENDING);
     expect(commsHold.holdUntilMatrixComplete).toBe(true);
 
-    // Feed up to 215 customers to reach 216 total
-    const customerBulk = [];
-    for (let i = 2; i <= 216; i++) {
-      customerBulk.push({
-        name: `Beta Customer ${i}`,
-        phone: `99142${i.toString().padStart(4, "0")}`,
+    // Verify matrix is not complete yet (currently at 215 confirmed customers)
+    const matrixCheck = await prisma.betaMatrix.findUniqueOrThrow({
+      where: { id: matrix.id }
+    });
+    expect(matrixCheck.status).toBe(BetaMatrixStatus.ACTIVE);
+    expect(matrixCheck.confirmedCustomers).toBe(215);
+
+    // Create the final 216th customer
+    const customer2 = await prisma.user.create({
+      data: {
+        name: "Beta Customer 2",
+        phone: "9914000006",
         passwordHash: "dummyhash",
         role: Role.CUSTOMER,
         sponsorId: level2.id,
         placementType: PlacementType.BETA_MATRIX,
         betaRootManagerId: rootManager.id,
-        referralCode: `BC_${i.toString().padStart(4, "0")}`
-      });
-    }
-    await prisma.user.createMany({ data: customerBulk });
-
-    // Process all bulk confirmation triggers except the last one manually, then verify final trigger
-    const queryBulk = await prisma.user.findMany({
-      where: { phone: { startsWith: "99142" } },
-      orderBy: { phone: "asc" }
+        referralCode: "BC_02"
+      }
     });
 
-    // Confirm up to 215 total
-    for (let i = 0; i < 214; i++) {
-      await createCommissionsAfterPaymentConfirmation(prisma, queryBulk[i].id);
-    }
-
-    // Verify matrix is not complete yet
-    const matrixCheck = await prisma.betaMatrix.findUniqueOrThrow({
-      where: { id: matrix.id }
-    });
-    expect(matrixCheck.status).toBe(BetaMatrixStatus.ACTIVE);
-
-    // Confirm the final 216th customer
-    await createCommissionsAfterPaymentConfirmation(prisma, queryBulk[214].id);
+    // Confirm the final 216th customer to complete the matrix
+    await createCommissionsAfterPaymentConfirmation(prisma, customer2.id);
 
     // Verify matrix is now COMPLETED and released root manager completion payout of 108,000
     const matrixFinal = await prisma.betaMatrix.findUniqueOrThrow({

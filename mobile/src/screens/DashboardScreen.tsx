@@ -10,7 +10,8 @@ import {
   useWindowDimensions,
   Alert,
   StyleSheet,
-  Modal
+  Modal,
+  RefreshControl
 } from "react-native";
 import {
   Session,
@@ -56,6 +57,23 @@ export function DashboardScreen({ session, onNavigate }: { session: Session; onN
   const [productError, setProductError] = useState("");
   const { width } = useWindowDimensions();
   const useTwoColumns = width >= 380;
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    try {
+      setRefreshing(true);
+      await Promise.all([
+        loadProducts(),
+        loadRoleDashboard(),
+        (session.user.role === "ADMIN" || session.user.role === "MANAGER" || session.user.role === "BETA_MANAGER") ? loadMatrices() : Promise.resolve()
+      ]);
+    } catch {
+      // Quiet fail
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   const liveSearchResults = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -203,7 +221,12 @@ export function DashboardScreen({ session, onNavigate }: { session: Session; onN
   }, []);
 
   return (
-    <ScrollView contentContainerStyle={styles.homeContent}>
+    <ScrollView
+      contentContainerStyle={styles.homeContent}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.brand700]} tintColor={colors.brand700} />
+      }
+    >
       <View style={styles.announcementStrip}>
         <Text style={styles.announcementText}>Authentic Ayurvedh Wellness Products</Text>
       </View>
@@ -213,11 +236,9 @@ export function DashboardScreen({ session, onNavigate }: { session: Session; onN
           <Text style={styles.homeGreeting}>Hi, {firstName}</Text>
           <Text style={styles.homeMeta}>Welcome back to Kerala Ayurvedh</Text>
         </View>
-        {session.user.role === "ADMIN" && (
-          <View style={styles.homeRoleBadge}>
-            <Text style={styles.homeRoleBadgeText}>{formatRole(session.user.role)}</Text>
-          </View>
-        )}
+        <View style={styles.homeRoleBadge}>
+          <Text style={styles.homeRoleBadgeText}>{formatRole(session.user.role)}</Text>
+        </View>
       </View>
 
       <RoleDashboardSummary role={session.user.role} stats={roleDashboard} loading={loadingDashboard} onNavigate={onNavigate} />
@@ -280,7 +301,7 @@ export function DashboardScreen({ session, onNavigate }: { session: Session; onN
         }}
       />
 
-      <SectionHeader title="Featured Products" action={loadingProducts ? "Loading" : "Refresh"} onAction={loadProducts} />
+      <SectionHeader title="Featured Products" />
       {selectedProduct ? (
         <ProductDetailCard
           product={selectedProduct}
@@ -310,7 +331,7 @@ export function DashboardScreen({ session, onNavigate }: { session: Session; onN
 
       {(session.user.role === "ADMIN" || session.user.role === "MANAGER" || session.user.role === "BETA_MANAGER") && (
         <View style={styles.homeBusinessCard}>
-          <SectionHeader title="Beta matrix progress" action="Refresh" onAction={loadMatrices} />
+          <SectionHeader title="Beta matrix progress" />
           {loadingMatrix && <ActivityIndicator color={colors.brand600} />}
           {matrices.length === 0 && !loadingMatrix ? (
             <Text style={styles.mutedText}>No Beta Matrix found for this account yet.</Text>
@@ -522,10 +543,13 @@ function PromoSlideshow() {
 function BrandIntro() {
   return (
     <View style={styles.brandIntro}>
-      <Text style={styles.brandIntroTitle}>Why Choose Kerala Ayurvedh?</Text>
-      <Text style={styles.brandIntroText}>
-        We craft our weight loss powders and wellness supplements using traditional methodology combined with modern quality checks. Each product is formulated to support natural vitality, daily balance, and holistic wellness routines.
-      </Text>
+      <View style={styles.brandIntroAccent} />
+      <View style={styles.brandIntroContent}>
+        <Text style={styles.brandIntroTitle}>Authentic Ayurvedh</Text>
+        <Text style={styles.brandIntroText}>
+          We craft our weight loss powders and wellness supplements using traditional methodology combined with modern quality checks. Each product is formulated to support natural vitality, daily balance, and holistic wellness routines.
+        </Text>
+      </View>
     </View>
   );
 }
@@ -591,14 +615,16 @@ function TrustPrinciples() {
   return (
     <View style={styles.trustContainer}>
       <Text style={styles.trustHeader}>Our Core Principles</Text>
-      {trustCards.map((card, idx) => (
-        <View key={idx} style={styles.trustCard}>
-          <View style={styles.trustIconBox}>
-            <Text style={styles.trustIcon}>{card.icon}</Text>
+      <View>
+        {trustCards.map((card, idx) => (
+          <View key={idx} style={styles.trustCard}>
+            <View style={styles.trustIconBox}>
+              <Text style={styles.trustIcon}>{card.icon}</Text>
+            </View>
+            <Text style={styles.trustTitle}>{card.title}</Text>
           </View>
-          <Text style={styles.trustTitle}>{card.title}</Text>
-        </View>
-      ))}
+        ))}
+      </View>
     </View>
   );
 }
@@ -623,14 +649,29 @@ function CustomerReviews() {
   return (
     <View style={styles.reviewsBox}>
       <Text style={styles.reviewsHeader}>Distributor & Customer Stories</Text>
-      {customerReviews.map((rev, idx) => (
-        <View key={idx} style={styles.reviewCard}>
-          <Text style={styles.reviewText}>"{rev.text}"</Text>
-          <Text style={styles.reviewAuthor}>
-            - {rev.name}, <Text style={styles.reviewLocation}>{rev.location}</Text>
-          </Text>
-        </View>
-      ))}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.reviewsCarouselContainer}
+      >
+        {customerReviews.map((rev, idx) => (
+          <View key={idx} style={styles.reviewCarouselCard}>
+            <Text style={styles.reviewQuoteMark}>“</Text>
+            <Text style={styles.reviewText} numberOfLines={4}>
+              {rev.text}
+            </Text>
+            <View style={styles.reviewFooter}>
+              <View style={styles.reviewDivider} />
+              <Text style={styles.reviewAuthor}>
+                {rev.name}
+              </Text>
+              <Text style={styles.reviewLocation}>
+                {rev.location}
+              </Text>
+            </View>
+          </View>
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -776,43 +817,41 @@ function ProductDetailCard({
       <Text style={styles.detailSectionTitle}>Benefits</Text>
       <Text style={styles.detailText}>{product.benefits || "Benefits will be added by Admin."}</Text>
 
-      {isCustomer && (
-        <View style={styles.checkoutContainer}>
-          {isAvailable && hasStock ? (
-            <>
-              <View style={styles.quantityRow}>
-                <Text style={styles.quantityLabel}>Quantity</Text>
-                <View style={styles.quantityPicker}>
-                  <Pressable
-                    style={styles.quantityBtn}
-                    onPress={() => setQuantity((q) => Math.max(1, q - 1))}
-                  >
-                    <Text style={styles.quantityBtnText}>-</Text>
-                  </Pressable>
-                  <Text style={styles.quantityText}>{quantity}</Text>
-                  <Pressable
-                    style={styles.quantityBtn}
-                    onPress={() => setQuantity((q) => Math.min(typeof product.stock === "number" ? product.stock : 99, q + 1))}
-                  >
-                    <Text style={styles.quantityBtnText}>+</Text>
-                  </Pressable>
-                </View>
+      <View style={styles.checkoutContainer}>
+        {isAvailable && hasStock ? (
+          <>
+            <View style={styles.quantityRow}>
+              <Text style={styles.quantityLabel}>Quantity</Text>
+              <View style={styles.quantityPicker}>
+                <Pressable
+                  style={styles.quantityBtn}
+                  onPress={() => setQuantity((q) => Math.max(1, q - 1))}
+                >
+                  <Text style={styles.quantityBtnText}>-</Text>
+                </Pressable>
+                <Text style={styles.quantityText}>{quantity}</Text>
+                <Pressable
+                  style={styles.quantityBtn}
+                  onPress={() => setQuantity((q) => Math.min(typeof product.stock === "number" ? product.stock : 99, q + 1))}
+                >
+                  <Text style={styles.quantityBtnText}>+</Text>
+                </Pressable>
               </View>
+            </View>
 
-              <Pressable
-                style={styles.buyNowBtn}
-                onPress={() => setShowSummary(true)}
-              >
-                <Text style={styles.buyNowBtnText}>Buy Now — {formatMoney(orderTotal)}</Text>
-              </Pressable>
-            </>
-          ) : (
-            <Text style={[styles.availabilityText, { color: colors.danger, textAlign: "center", marginVertical: 10 }]}>
-              {!isAvailable ? "Coming Soon / Unavailable" : "Out of Stock"}
-            </Text>
-          )}
-        </View>
-      )}
+            <Pressable
+              style={styles.buyNowBtn}
+              onPress={() => setShowSummary(true)}
+            >
+              <Text style={styles.buyNowBtnText}>Buy Now — {formatMoney(orderTotal)}</Text>
+            </Pressable>
+          </>
+        ) : (
+          <Text style={[styles.availabilityText, { color: colors.danger, textAlign: "center", marginVertical: 10 }]}>
+            {!isAvailable ? "Coming Soon / Unavailable" : "Out of Stock"}
+          </Text>
+        )}
+      </View>
 
       <Modal visible={showSummary} transparent={true} animationType="fade" onRequestClose={() => setShowSummary(false)}>
         <View style={styles.summaryOverlay}>
@@ -1088,19 +1127,39 @@ const styles = StyleSheet.create({
     width: 14
   },
   brandIntro: {
-    paddingHorizontal: 16,
-    marginTop: 20
+    marginHorizontal: 16,
+    marginTop: 20,
+    backgroundColor: colors.white,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.slate100,
+    padding: 16,
+    flexDirection: "row",
+    gap: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4
+  },
+  brandIntroAccent: {
+    width: 4,
+    borderRadius: 2,
+    backgroundColor: colors.brand600
+  },
+  brandIntroContent: {
+    flex: 1
   },
   brandIntroTitle: {
     fontSize: 16,
-    fontWeight: "700",
-    color: colors.slate900
+    fontWeight: "800",
+    color: colors.slate950,
+    marginBottom: 4
   },
   brandIntroText: {
     fontSize: 13,
-    color: colors.slate500,
-    marginTop: 6,
-    lineHeight: 18
+    color: colors.slate600,
+    lineHeight: 19
   },
   categoryRailContainer: {
     marginTop: 20
@@ -1252,39 +1311,49 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16
   },
   trustHeader: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.slate900,
-    marginBottom: 12
+    fontSize: 17,
+    fontWeight: "800",
+    color: colors.slate950,
+    marginBottom: 12,
+    letterSpacing: 0.3
   },
   trustCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.white,
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: colors.slate100
+    borderColor: "#eef3ee",
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 3
   },
   trustIconBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.brand50,
+    borderColor: colors.brand100,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12
+    marginRight: 14
   },
   trustIcon: {
-    color: colors.brand600,
-    fontWeight: "700",
-    fontSize: 12
+    color: colors.brand700,
+    fontWeight: "900",
+    fontSize: 14
   },
   trustTitle: {
     fontSize: 13,
-    color: colors.slate700,
-    fontWeight: "600",
+    color: colors.slate800,
+    fontWeight: "700",
+    lineHeight: 18,
     flex: 1
   },
   wellnessBox: {
@@ -1324,39 +1393,71 @@ const styles = StyleSheet.create({
     fontWeight: "600"
   },
   reviewsBox: {
-    marginTop: 24,
-    paddingHorizontal: 16
+    paddingVertical: 20,
+    backgroundColor: colors.white,
+    marginVertical: 12,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.slate100
   },
   reviewsHeader: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.slate900,
-    marginBottom: 12
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.slate950,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    letterSpacing: 0.3
   },
-  reviewCard: {
-    backgroundColor: colors.white,
-    padding: 14,
-    borderRadius: 8,
-    marginBottom: 8,
+  reviewsCarouselContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 4
+  },
+  reviewCarouselCard: {
+    backgroundColor: colors.slate50,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.slate100
+    borderColor: colors.slate200,
+    padding: 16,
+    marginHorizontal: 4,
+    width: 280,
+    height: 155,
+    justifyContent: "space-between",
+    position: "relative"
+  },
+  reviewQuoteMark: {
+    position: "absolute",
+    top: 6,
+    left: 12,
+    fontSize: 32,
+    color: colors.brand200,
+    fontWeight: "900",
+    lineHeight: 32
   },
   reviewText: {
     fontSize: 13,
     color: colors.slate700,
     fontStyle: "italic",
-    lineHeight: 18
+    lineHeight: 18,
+    marginTop: 12
+  },
+  reviewFooter: {
+    marginTop: 8
+  },
+  reviewDivider: {
+    height: 1,
+    backgroundColor: colors.slate200,
+    marginBottom: 6
   },
   reviewAuthor: {
     fontSize: 12,
     fontWeight: "700",
-    color: colors.slate900,
-    marginTop: 6,
-    textAlign: "right"
+    color: colors.slate900
   },
   reviewLocation: {
-    color: colors.slate500,
-    fontWeight: "500"
+    fontSize: 10,
+    color: colors.brand600,
+    fontWeight: "600",
+    marginTop: 1
   },
   quickLinksBox: {
     marginHorizontal: 16,

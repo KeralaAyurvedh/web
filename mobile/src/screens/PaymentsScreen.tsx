@@ -7,12 +7,13 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
-  StyleSheet
+  StyleSheet,
+  RefreshControl
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
 import { Session, Handover, User, Order, PaymentHandoverStatusValue, Role } from "../constants/types";
-import { apiRequest, formatMoney, formatBytes, mediaUrl } from "../services/api";
+import { apiRequest, formatMoney, formatBytes, mediaUrl, formatRole } from "../services/api";
 import { colors } from "../constants/theme";
 import { PAYMENT_CONFIG } from "../constants/config";
 import {
@@ -34,6 +35,18 @@ export function PaymentsScreen({ session }: { session: Session }) {
   const [confirmOrderId, setConfirmOrderId] = useState("");
   const [uploadingProofId, setUploadingProofId] = useState("");
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    try {
+      setRefreshing(true);
+      await loadPaymentOptions();
+    } catch {
+      // Quiet fail
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function loadHandovers() {
     try {
@@ -252,8 +265,8 @@ export function PaymentsScreen({ session }: { session: Session }) {
     if (targetRank > currentRank) {
       if (targetUser.role === "ADMIN") return "Company Admin";
       if (targetUser.role === "MANAGER" || targetUser.role === "BETA_MANAGER") return "Upline Manager";
-      if (targetUser.role === "LEVEL_1") return "Upline Representative Advisor";
-      if (targetUser.role === "LEVEL_2") return "Upline Representative";
+      if (targetUser.role === "LEVEL_1") return "Upline a2 (Main Pillar)";
+      if (targetUser.role === "LEVEL_2") return "Upline a1 (Downline)";
     }
 
     return targetUser.name;
@@ -293,8 +306,18 @@ export function PaymentsScreen({ session }: { session: Session }) {
     );
 
     return (
-      <ScrollView contentContainerStyle={styles.content}>
-        <SectionHeader title="UPI Payments & Checkout" action="Refresh" onAction={loadPaymentOptions} />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[colors.brand700]}
+            tintColor={colors.brand700}
+          />
+        }
+      >
+        <SectionHeader title="UPI Payments & Checkout" />
         {loading && <ActivityIndicator color={colors.brand600} />}
         
         <View style={styles.card}>
@@ -392,8 +415,18 @@ export function PaymentsScreen({ session }: { session: Session }) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <SectionHeader title="Payment handovers" action="Refresh" onAction={loadPaymentOptions} />
+    <ScrollView
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          colors={[colors.brand700]}
+          tintColor={colors.brand700}
+        />
+      }
+    >
+      <SectionHeader title="Payment handovers" />
       {session.user.role === "ADMIN" && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Company payment confirmation</Text>
@@ -402,9 +435,9 @@ export function PaymentsScreen({ session }: { session: Session }) {
           <OptionList
             items={users.filter((user) => user.role !== "ADMIN" && user.role !== "MANAGER")}
             selectedId={confirmUserId}
-            emptyText="Tap Refresh to load users."
+            emptyText="Pull down to load users."
             onSelect={setConfirmUserId}
-            renderLabel={(user) => `${user.name} - ${user.role.replace("_", " ")}`}
+            renderLabel={(user) => `${user.name} - ${formatRole(user.role)}`}
           />
           <PrimaryButton label="Confirm user payment" onPress={confirmUserPayment} loading={loading} />
           <View style={styles.spacer} />
@@ -412,7 +445,7 @@ export function PaymentsScreen({ session }: { session: Session }) {
           <OptionList
             items={orders}
             selectedId={confirmOrderId}
-            emptyText="Tap Refresh to load orders."
+            emptyText="Pull down to load orders."
             onSelect={setConfirmOrderId}
             renderLabel={(order) => `${order.customer?.name ?? "Customer"} - ${formatMoney(order.totalAmount)} - ${order.paymentStatus}`}
           />
@@ -432,9 +465,9 @@ export function PaymentsScreen({ session }: { session: Session }) {
             <OptionList
               items={users.filter((user) => user.id !== session.user.id)}
               selectedId={toUserId}
-              emptyText="Tap Refresh to load receivers."
+              emptyText="Pull down to load receivers."
               onSelect={setToUserId}
-              renderLabel={(user) => `${user.name} - ${user.role.replace("_", " ")}`}
+              renderLabel={(user) => `${user.name} - ${formatRole(user.role)}`}
             />
           </>
         ) : null}
@@ -442,7 +475,7 @@ export function PaymentsScreen({ session }: { session: Session }) {
         <OptionList
           items={orders}
           selectedId={handoverOrderId}
-          emptyText="Tap Refresh to load orders. Leave blank only for non-order payments."
+          emptyText="Pull down to load orders. Leave blank only for non-order payments."
           onSelect={setHandoverOrderId}
           renderLabel={(order) => `${order.customer?.name ?? "Customer"} - ${formatMoney(order.totalAmount)} - ${order.paymentStatus}`}
         />

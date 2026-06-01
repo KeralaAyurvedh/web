@@ -6,7 +6,8 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
-  StyleSheet
+  StyleSheet,
+  RefreshControl
 } from "react-native";
 import { Session, Order } from "../constants/types";
 import { colors } from "../constants/theme";
@@ -16,7 +17,19 @@ import { SectionHeader, EmptyState } from "../components/UI/FormControls";
 export function MyOrdersScreen({ session }: { session: Session }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+
+  async function handleRefresh() {
+    try {
+      setRefreshing(true);
+      await loadOrders();
+    } catch {
+      // Quiet fail
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function loadOrders() {
     try {
@@ -41,8 +54,18 @@ export function MyOrdersScreen({ session }: { session: Session }) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <SectionHeader title="My Orders" action="Refresh" onAction={loadOrders} />
+    <ScrollView
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          colors={[colors.brand700]}
+          tintColor={colors.brand700}
+        />
+      }
+    >
+      <SectionHeader title="My Orders" />
       
       {loading && <ActivityIndicator color={colors.brand600} style={{ marginVertical: 12 }} />}
 

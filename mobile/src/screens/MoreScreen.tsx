@@ -42,6 +42,8 @@ export function MoreScreen({
 
   const moreMenuItems: MoreMenuItem[] = [
     { key: "admin", title: "Company Admin", description: "Manage users, products, orders, reports and system monitor", icon: "A", adminOnly: true },
+    { key: "cart" as TabKey, title: "Shopping Cart", description: "View wellness products in your cart and checkout", icon: "🛒" },
+    { key: "my-orders" as TabKey, title: "My Orders", description: "Track your orders and purchase history", icon: "📦" },
     { key: "tree", title: "Structure", description: "Open the representative network structure", icon: "T" },
     { key: "commissions", title: "Earnings", description: "View commission ledger and earning status", icon: "E" },
     { key: "payments", title: "Payments", description: "Record and track money handovers", icon: "P" },

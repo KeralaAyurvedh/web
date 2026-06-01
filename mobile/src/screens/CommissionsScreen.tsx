@@ -6,17 +6,38 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
-  Pressable
+  Pressable,
+  RefreshControl
 } from "react-native";
 import { Session, Commission } from "../constants/types";
 import { apiRequest, formatMoney, formatDateTime } from "../services/api";
 import { colors } from "../constants/theme";
 import { SectionHeader, EmptyState } from "../components/UI/FormControls";
 
+function formatCommissionType(type: string) {
+  if (type === "DIRECT_LEVEL_1_JOIN") return "a3 Direct Join";
+  if (type === "DIRECT_LEVEL_2_JOIN") return "a2 Direct Join";
+  if (type === "UPLINE_LEVEL_2_JOIN") return "Upline Passive";
+  if (type === "CUSTOMER_JOIN") return "Customer Join";
+  return type.replaceAll("_", " ");
+}
+
 export function CommissionsScreen({ session }: { session: Session }) {
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<"MONTH" | "ALL">("ALL");
+
+  async function handleRefresh() {
+    try {
+      setRefreshing(true);
+      await loadCommissions();
+    } catch {
+      // Quiet fail
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function loadCommissions() {
     try {
@@ -60,8 +81,18 @@ export function CommissionsScreen({ session }: { session: Session }) {
     .reduce((sum, item) => sum + Number(item.amount), 0);
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <SectionHeader title="Earnings" action="Refresh" onAction={loadCommissions} />
+    <ScrollView
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          colors={[colors.brand700]}
+          tintColor={colors.brand700}
+        />
+      }
+    >
+      <SectionHeader title="Earnings" />
 
       {/* Redesigned Card Layout */}
       <View style={styles.earningsCard}>
@@ -108,7 +139,7 @@ export function CommissionsScreen({ session }: { session: Session }) {
           {filteredCommissions.map((item) => (
             <View key={item.id} style={styles.transactionItem}>
               <View style={styles.transactionLeft}>
-                <Text style={styles.transactionTitle}>{item.type.replaceAll("_", " ")}</Text>
+                <Text style={styles.transactionTitle}>{formatCommissionType(item.type)}</Text>
                 <Text style={styles.transactionDate}>{formatDateTime(item.createdAt)}</Text>
               </View>
               <View style={styles.transactionRight}>

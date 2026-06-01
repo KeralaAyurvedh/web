@@ -6,7 +6,8 @@ import {
   Clipboard,
   Alert,
   Pressable,
-  ActivityIndicator
+  ActivityIndicator,
+  Linking
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
@@ -132,6 +133,31 @@ export function PaymentGateScreen({
             <Text style={styles.copyButtonText}>{copied ? "Copied!" : "Copy"}</Text>
           </Pressable>
         </View>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.upiAppButton,
+            pressed && styles.upiAppButtonPressed
+          ]}
+          onPress={async () => {
+            const upiUrl = "upi://pay?pa=keralaayurvedh@upi&pn=Kerala%20Ayurvedh&am=299&cu=INR";
+            try {
+              const supported = await Linking.canOpenURL(upiUrl);
+              if (supported) {
+                await Linking.openURL(upiUrl);
+              } else {
+                Alert.alert(
+                  "UPI App Not Found",
+                  "We could not detect any installed UPI applications (GPay, PhonePe, Paytm) on your device. Please copy the UPI ID and pay manually."
+                );
+              }
+            } catch (err) {
+              Alert.alert("Error", "An error occurred while launching your UPI app. Please try manual payment.");
+            }
+          }}
+        >
+          <Text style={styles.upiAppButtonText}>Pay via UPI App (GPay/PhonePe/Paytm)</Text>
+        </Pressable>
 
         <View style={styles.subdivider} />
 
@@ -301,5 +327,29 @@ const styles = StyleSheet.create({
     color: colors.slate500,
     fontSize: 14,
     fontWeight: "600"
+  },
+  upiAppButton: {
+    backgroundColor: colors.brand600,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
+    shadowColor: colors.brand600,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2
+  },
+  upiAppButtonPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }]
+  },
+  upiAppButtonText: {
+    color: colors.white,
+    fontWeight: "800",
+    fontSize: 15,
+    letterSpacing: 0.5
   }
 });

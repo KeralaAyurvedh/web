@@ -1,6 +1,6 @@
 import { BetaMatrixStatus, CommissionStatus, CommissionType, PlacementType, Role, type PrismaClient } from "@prisma/client";
 
-const DIRECT_JOIN_COMMISSION = 1000;
+const DIRECT_JOIN_COMMISSION = 1500;
 const UPLINE_LEVEL_2_JOIN_COMMISSION = 500;
 const BETA_CUSTOMER_HOLD_AMOUNT = 500;
 const BETA_COMPLETION_CUSTOMERS = 216;
@@ -69,7 +69,7 @@ export async function createCommissionsAfterPaymentConfirmation(tx: Tx, sourceUs
     }
   }
 
-  if (source.role === Role.CUSTOMER && source.sponsor?.role === Role.LEVEL_2) {
+  if (source.role === Role.CUSTOMER && source.sponsor) {
     await tx.commissionLedger.create({
       data: {
         receiverId: source.sponsor.id,
@@ -79,6 +79,19 @@ export async function createCommissionsAfterPaymentConfirmation(tx: Tx, sourceUs
         amount: DIRECT_JOIN_COMMISSION
       }
     });
+
+    const upline = source.sponsor.sponsor;
+    if (upline) {
+      await tx.commissionLedger.create({
+        data: {
+          receiverId: upline.id,
+          sourceUserId: source.id,
+          type: CommissionType.UPLINE_LEVEL_2_JOIN,
+          status: CommissionStatus.APPROVED,
+          amount: UPLINE_LEVEL_2_JOIN_COMMISSION
+        }
+      });
+    }
 
     if (source.placementType === PlacementType.BETA_MATRIX && source.betaRootManagerId) {
       const currentMatrix = await tx.betaMatrix.findUnique({

@@ -8,7 +8,8 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  StyleSheet
+  StyleSheet,
+  RefreshControl
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
@@ -48,6 +49,19 @@ export function ProductsScreen({
   addToCart?: (product: Product, quantity: number) => void;
 }) {
   const scrollRef = useRef<ScrollView>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    try {
+      setRefreshing(true);
+      await loadOrderOptions();
+    } catch {
+      // Quiet fail
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   const [products, setProducts] = useState<Product[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [stockAdjustments, setStockAdjustments] = useState<StockAdjustment[]>([]);
@@ -400,8 +414,19 @@ export function ProductsScreen({
 
 
   return (
-    <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
-      <SectionHeader title="Product catalog" action="Refresh" onAction={loadOrderOptions} />
+    <ScrollView
+      ref={scrollRef}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          colors={[colors.brand700]}
+          tintColor={colors.brand700}
+        />
+      }
+    >
+      <SectionHeader title="Product catalog" />
       {session.user.role === "ADMIN" && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{editingProductId ? "Edit product" : "Add product"}</Text>
@@ -461,7 +486,7 @@ export function ProductsScreen({
           <OptionList
             items={products}
             selectedId={stockProductId}
-            emptyText="Tap Refresh to load products."
+            emptyText="Pull down to load products."
             onSelect={setStockProductId}
             renderLabel={(product) => `${product.name} - Stock ${product.stock ?? 0}`}
           />
@@ -502,7 +527,7 @@ export function ProductsScreen({
           <OptionList
             items={users.filter((user) => user.role === "CUSTOMER")}
             selectedId={orderCustomerId}
-            emptyText="Tap Refresh to load customers."
+            emptyText="Pull down to load customers."
             onSelect={setOrderCustomerId}
             renderLabel={(user) => `${user.name} - ${user.phone}`}
           />
@@ -510,7 +535,7 @@ export function ProductsScreen({
           <OptionList
             items={products}
             selectedId={orderProductId}
-            emptyText="Tap Refresh to load products."
+            emptyText="Pull down to load products."
             onSelect={setOrderProductId}
             renderLabel={(product) => `${product.name} - ${formatMoney(product.price)}`}
           />

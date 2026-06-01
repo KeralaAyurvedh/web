@@ -66,8 +66,13 @@ export async function assertCanAddDownline(params: {
   }
 
   if (params.newRole === Role.CUSTOMER) {
-    if (sponsor.role !== Role.LEVEL_2) {
-      throw new Error("Only Level 2 Agents can add Customers");
+    if (
+      sponsor.role !== Role.LEVEL_2 &&
+      sponsor.role !== Role.LEVEL_1 &&
+      sponsor.role !== Role.MANAGER &&
+      sponsor.role !== Role.BETA_MANAGER
+    ) {
+      throw new Error("Only Manager, Main Pillar, or Downline Agents can add Customers");
     }
 
     if (params.placementType === PlacementType.BETA_MATRIX) {

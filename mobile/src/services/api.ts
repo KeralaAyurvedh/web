@@ -64,15 +64,14 @@ export function formatDateTime(value?: string | null) {
 
 export function formatRole(role?: string | null, isAdmin?: boolean): string {
   if (!role) return "N/A";
-  if (isAdmin) {
-    if (role === "LEVEL_1") return "Main Pillar";
-    if (role === "LEVEL_2") return "Downline";
-    return role.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
-  }
-
-  if (role === "ADMIN") return "Admin";
-  if (role === "CUSTOMER") return "Customer";
-  return "Representative";
+  const r = role.toUpperCase();
+  if (r === "ADMIN") return "Admin";
+  if (r === "MANAGER") return "a3 (Manager)";
+  if (r === "BETA_MANAGER") return "a3 (Beta Manager)";
+  if (r === "LEVEL_1") return "a2 (Main Pillar)";
+  if (r === "LEVEL_2") return "a1 (Downline)";
+  if (r === "CUSTOMER") return "Customer";
+  return role.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export function formatCountAmount(row: CountAmountRow, isAdmin?: boolean) {

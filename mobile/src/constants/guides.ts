@@ -108,33 +108,33 @@ export const helpGuides: Record<Role, HelpGuide> = {
   },
   MANAGER: {
     role: "MANAGER",
-    title: "Manager Work",
+    title: "a3 (Manager) Work",
     message: "You grow your team and track confirmed customers.",
     steps: [
-      { icon: "1", title: "Add Representative", text: "Add your Representative member from Network.", route: "network", action: "Open Network" },
-      { icon: "2", title: "Help Your Team", text: "Help Representatives add customer members.", route: "tree", action: "Open Structure" },
+      { icon: "1", title: "Add Team Member", text: "Add your a2 (Main Pillar) member from Network.", route: "network", action: "Open Network" },
+      { icon: "2", title: "Help Your Team", text: "Help partners add customer members.", route: "tree", action: "Open Structure" },
       { icon: "3", title: "Track Network", text: "See your team and customer progress.", route: "tree", action: "Open Structure" },
       { icon: "4", title: "Check Payment", text: "Check if member payment is confirmed.", route: "payments", action: "Open Payments" },
       { icon: "5", title: "Check Earnings", text: "Your commission appears after company confirmation.", route: "commissions", action: "Open Earnings" },
       { icon: "6", title: "Complete 216 Customers", text: "Only confirmed customers count for this target.", route: "dashboard", action: "Open Home" },
-      { icon: "7", title: "Unlock Beta Manager", text: "After 216 confirmed customers, Beta Manager can be added.", route: "network", action: "Open Network" },
+      { icon: "7", title: "Unlock Beta Manager", text: "After 216 confirmed customers, a3 (Beta Manager) can be added.", route: "network", action: "Open Network" },
       { icon: "8", title: "Follow Payment Handover", text: "Give collected money to the correct higher level.", route: "payments", action: "Open Payments" }
     ],
     nextActions: [
-      { icon: "1", title: "Add your Representative member", text: "Open Network and create your next member.", route: "network", action: "Open Network" },
+      { icon: "1", title: "Add your team member", text: "Open Network and create your next member.", route: "network", action: "Open Network" },
       { icon: "2", title: "Check 216 customer progress", text: "Open Home to see Beta Manager progress.", route: "dashboard", action: "Open Home" },
       { icon: "3", title: "Open Structure", text: "See your team clearly.", route: "tree", action: "Open Structure" }
     ]
   },
   BETA_MANAGER: {
     role: "BETA_MANAGER",
-    title: "Beta Manager Work",
+    title: "a3 (Beta Manager) Work",
     message: "You track your matrix and confirmed customer progress.",
     steps: [
       { icon: "1", title: "Understand Matrix", text: "Your matrix target is 216 confirmed customers.", route: "tree", action: "Open Structure" },
       { icon: "2", title: "Add Customers", text: "Customers are added through your network.", route: "network", action: "Open Network" },
       { icon: "3", title: "Track Confirmed Customers", text: "Only confirmed customers count.", route: "dashboard", action: "Open Home" },
-      { icon: "4", title: "Representative Commission", text: "Representative gets customer commission after confirmation.", route: "commissions", action: "Open Earnings" },
+      { icon: "4", title: "Partner Commission", text: "Downline gets customer commission after confirmation.", route: "commissions", action: "Open Earnings" },
       { icon: "5", title: "Held Amount", text: "Manager amount is held until target is complete.", route: "commissions", action: "Open Earnings" },
       { icon: "6", title: "Complete 216", text: "Complete all 216 confirmed customers.", route: "tree", action: "Open Structure" },
       { icon: "7", title: "Check Released Amount", text: "Released payment appears after completion.", route: "payments", action: "Open Payments" }
@@ -146,23 +146,23 @@ export const helpGuides: Record<Role, HelpGuide> = {
   },
   LEVEL_1: {
     role: "LEVEL_1",
-    title: "Representative Work",
+    title: "a2 (Main Pillar) Work",
     message: "You onboard partners, build your team and check your earnings.",
     steps: [
-      { icon: "1", title: "Add Team Member", text: "Add Representative member from Network.", route: "network", action: "Open Network" },
-      { icon: "2", title: "Check Network", text: "See your Representatives and customers.", route: "tree", action: "Open Structure" },
+      { icon: "1", title: "Add Team Member", text: "Add a1 (Downline) member from Network.", route: "network", action: "Open Network" },
+      { icon: "2", title: "Check Network", text: "See your Downlines and customers.", route: "tree", action: "Open Structure" },
       { icon: "3", title: "Check Payment Status", text: "Payments update after confirmation.", route: "payments", action: "Open Payments" },
       { icon: "4", title: "Check Commission", text: "Commission appears after company confirmation.", route: "commissions", action: "Open Earnings" },
-      { icon: "5", title: "Help Team Member", text: "Help Representatives add customers correctly.", route: "network", action: "Open Network" }
+      { icon: "5", title: "Help Team Member", text: "Help Downlines add customers correctly.", route: "network", action: "Open Network" }
     ],
     nextActions: [
-      { icon: "1", title: "Add Representative member", text: "Open Network and create Representative.", route: "network", action: "Open Network" },
+      { icon: "1", title: "Add Downline member", text: "Open Network and create Downline.", route: "network", action: "Open Network" },
       { icon: "2", title: "Check earnings", text: "Open Earnings to see commission.", route: "commissions", action: "Open Earnings" }
     ]
   },
   LEVEL_2: {
     role: "LEVEL_2",
-    title: "Representative Work",
+    title: "a1 (Downline) Work",
     message: "You add customers and earn after confirmation.",
     steps: [
       { icon: "1", title: "Add Customer", text: "Add customer from Network.", route: "network", action: "Add Customer" },
@@ -200,9 +200,9 @@ export const commonHelpTopics: HelpTopic[] = [
   { id: "login", title: "How to login", keywords: ["login", "password", "phone"], text: "Use your phone number and password given by company/admin.", steps: ["Open the app", "Enter phone number", "Enter password", "Tap Sign in"], route: "profile", action: "Open Profile" },
   { id: "password", title: "How to change login details", keywords: ["password", "security", "login", "phone"], text: "Change password when you want a new secure password. Company Admin can also change the admin login phone number from Security.", steps: ["Open More", "Open Security", "Enter current password", "Enter new password or admin login phone", "Tap the relevant change button"], route: "security", action: "Open Security" },
   { id: "products", title: "How to view products", keywords: ["products", "stock", "price"], text: "Products page shows product details, price and availability.", steps: ["Open Products", "Search or select product", "Read details", "Check price and availability"], route: "products", action: "Open Products" },
-  { id: "order", title: "How payment & order flow works", keywords: ["order", "product", "quantity", "flow", "status"], text: "Placing and tracking customer orders follows a defined 11-stage process. You can browse products under the Products tab, select the items and quantities, and tap 'Place Order' to initialize the request. The order will progress through the following statuses: (1) CREATED: Order is logged. (2) MONEY_COLLECTED_BY_LEVEL_2: Representative collects customer funds. (3) MONEY_TRANSFERRED_TO_LEVEL_1: Funds handed over to direct Representative upline. (4) MONEY_TRANSFERRED_TO_MANAGER: Funds handed over to team Manager. (5) MONEY_RECEIVED_BY_COMPANY: Admin confirms funds in bank. (6) PRODUCT_RELEASED_BY_COMPANY: Package shipped from warehouse. (7) PRODUCT_RECEIVED_BY_MANAGER: Manager receives package. (8) PRODUCT_RECEIVED_BY_LEVEL_1: Representative upline receives package. (9) PRODUCT_RECEIVED_BY_LEVEL_2: Representative receives package. (10) DELIVERED_TO_CUSTOMER: Customer receives their order. (11) CANCELLED: Order is terminated. Orders can be cancelled at any point before the company releases products.", steps: ["Open the Products tab to view the Ayurvedic catalog", "Select the product, set the quantity, and tap 'Place Order'", "Note the Order ID and share it with your sponsor/upline", "Track the 11-stage order status in your orders history list", "Verify each physical handover and receive stage as the product travels to the customer"], route: "products", action: "Open Products" },
-  { id: "payment", title: "How payment handover works", keywords: ["payment", "handover", "pending", "receipt", "rules"], text: "All order payments are processed through a strictly monitored multi-tier manual handover sequence. (1) Customers pay their direct Representative via cash or UPI. (2) The Representative transfers/hands over the collected funds to their direct Representative upline. (3) The Representative upline consolidates and transfers the funds to their team Manager. (4) The Manager transfers the funds directly to the Company. For every handover, you MUST log the transaction in the Payments tab, enter the amount, select the corresponding Order ID, and upload a valid transaction receipt (image or PDF). The status will remain PENDING until the recipient verifies the funds and marks it as RECEIVED. Only received payments will trigger order processing and commission payouts.", steps: ["Collect payment (cash/UPI) from your customer or direct representative", "Navigate to the Payments tab inside the app", "Tap 'Record Payment Handover' to log the transaction", "Enter the exact amount and select the correct Order ID", "Upload a clear photo or PDF proof of the payment/transaction receipt", "Submit the handover and wait for the recipient to verify and approve it"], route: "payments", action: "Open Payments" },
-  { id: "commission", title: "How commission & passive earnings work", keywords: ["commission", "earning", "earnings", "employee id", "passive", "beta", "matrix"], text: "Kerala Ayurvedh offers rewarding commissions for active members and team builders: (1) Direct Referral: Representative advisors earn a flat Rs 1,000 commission for each Representative they directly recruit. (2) Passive Earnings: Representative advisors earn a passive Rs 500 commission whenever their active Representatives onboard new customers or sell products. (3) Manager Commissions: Managers earn Rs 1,000 for each direct Representative member, and Rs 500 for each Representative that joins their team. (4) Beta Matrix: Capped at 216 confirmed customers. For every customer added within a Manager's Beta Matrix, Rs 500 is held as pending. Once the matrix is fully completed with 216 confirmed customers, the Manager receives a major lump-sum payout of Rs 108,000. All commissions are updated to PENDING instantly and are approved/paid after payment confirmation.", steps: ["Recruit members using your unique Employee ID from the Profile tab", "Ensure new representatives enter your Employee ID when applying", "Help your Representative team onboard customers to earn Rs 500 passive gains", "Track normal customer counts to unlock the Beta Matrix upgrade", "Monitor your Earnings ledger for pending, approved, and paid commissions"], route: "commissions", action: "Open Earnings" },
+  { id: "order", title: "How payment & order flow works", keywords: ["order", "product", "quantity", "flow", "status"], text: "Placing and tracking customer orders follows a defined 11-stage process. You can browse products under the Products tab, select the items and quantities, and tap 'Place Order' to initialize the request. The order will progress through the following statuses: (1) CREATED: Order is logged. (2) MONEY_COLLECTED_BY_LEVEL_2: Downline collects customer funds. (3) MONEY_TRANSFERRED_TO_LEVEL_1: Funds handed over to Main Pillar upline. (4) MONEY_TRANSFERRED_TO_MANAGER: Funds handed over to team Manager. (5) MONEY_RECEIVED_BY_COMPANY: Admin confirms funds in bank. (6) PRODUCT_RELEASED_BY_COMPANY: Package shipped from warehouse. (7) PRODUCT_RECEIVED_BY_MANAGER: Manager receives package. (8) PRODUCT_RECEIVED_BY_LEVEL_1: Main Pillar upline receives package. (9) PRODUCT_RECEIVED_BY_LEVEL_2: Downline receives package. (10) DELIVERED_TO_CUSTOMER: Customer receives their order. (11) CANCELLED: Order is terminated. Orders can be cancelled at any point before the company releases products.", steps: ["Open the Products tab to view the Ayurvedic catalog", "Select the product, set the quantity, and tap 'Place Order'", "Note the Order ID and share it with your sponsor/upline", "Track the 11-stage order status in your orders history list", "Verify each physical handover and receive stage as the product travels to the customer"], route: "products", action: "Open Products" },
+  { id: "payment", title: "How payment handover works", keywords: ["payment", "handover", "pending", "receipt", "rules"], text: "All order payments are processed through a strictly monitored multi-tier manual handover sequence. (1) Customers pay their direct Downline via cash or UPI. (2) The Downline transfers/hands over the collected funds to their direct Main Pillar upline. (3) The Main Pillar upline consolidates and transfers the funds to their team Manager. (4) The Manager transfers the funds directly to the Company. For every handover, you MUST log the transaction in the Payments tab, enter the amount, select the corresponding Order ID, and upload a valid transaction receipt (image or PDF). The status will remain PENDING until the recipient verifies the funds and marks it as RECEIVED. Only received payments will trigger order processing and commission payouts.", steps: ["Collect payment (cash/UPI) from your customer or direct representative", "Navigate to the Payments tab inside the app", "Tap 'Record Payment Handover' to log the transaction", "Enter the exact amount and select the correct Order ID", "Upload a clear photo or PDF proof of the payment/transaction receipt", "Submit the handover and wait for the recipient to verify and approve it"], route: "payments", action: "Open Payments" },
+  { id: "commission", title: "How commission & passive earnings work", keywords: ["commission", "earning", "earnings", "employee id", "passive", "beta", "matrix"], text: "Kerala Ayurvedh offers rewarding commissions for active members and team builders: (1) Direct Referral: Downline agents earn a flat Rs 1,500 commission for each partner they directly recruit. (2) Passive Earnings: Main Pillar agents earn a passive Rs 500 commission whenever their active Downlines onboard new customers or sell products. (3) Manager Commissions: Managers earn Rs 1,500 for each direct Downline/Main Pillar member, and Rs 500 for each downline that joins their team. (4) Beta Matrix: Capped at 216 confirmed customers. For every customer added within a Manager's Beta Matrix, Rs 500 is held as pending. Once the matrix is fully completed with 216 confirmed customers, the Manager receives a major lump-sum payout of Rs 108,000. All commissions are updated to PENDING instantly and are approved/paid after payment confirmation.", steps: ["Recruit members using your unique Employee ID from the Profile tab", "Ensure new representatives enter your Employee ID when applying", "Help your Downline team onboard customers to earn Rs 500 passive gains", "Track normal customer counts to unlock the Beta Matrix upgrade", "Monitor your Earnings ledger for pending, approved, and paid commissions"], route: "commissions", action: "Open Earnings" },
   { id: "tree", title: "How Structure works", keywords: ["tree", "network", "manager", "customer"], text: "Structure shows your team and customers.", steps: ["Open Structure", "Zoom or move the tree", "Tap a person", "Read details"], route: "tree", action: "Open Structure" },
   { id: "support", title: "How to contact support", keywords: ["support", "help", "confused", "email"], text: "Our customer and representative support desk assists with payment disputes, order delays, role upgrades, or system usage questions by email only. Official support hours are Monday to Saturday, from 9:00 AM to 6:00 PM. Contact support@keralaayurvedh.com with your User ID, Order ID if applicable, and screenshots.", steps: ["Open the Help tab inside the app", "Tap the Email button in the Need help section", "Include your User ID and Order ID if the question is about an order or payment", "Attach screenshots or receipt proof when useful", "Wait for the support team to reply by email"], route: "help", action: "Open Help" },
   { id: "privacy", title: "Privacy and Aadhaar consent", keywords: ["privacy", "aadhaar", "consent", "identity"], text: "Kerala Ayurvedh collects Aadhaar numbers only for identity verification, application review, fraud prevention, business compliance, and legal recordkeeping. Aadhaar images are not collected. Payment proofs are private and visible only through authorized secure links.", steps: ["Read the consent text before submitting an application or upgrade request", "Submit Aadhaar numbers only when the applicant has consented", "Do not upload Aadhaar images", "Email support@keralaayurvedh.com for privacy questions or correction requests"], route: "help", action: "Open Help" },
@@ -361,9 +361,9 @@ export function defaultCreateRole(role: Role): Role {
 
 export function createRoleOptions(role: Role): Role[] {
   if (role === "ADMIN") return ["MANAGER", "BETA_MANAGER", "LEVEL_1", "LEVEL_2", "CUSTOMER"];
-  if (role === "MANAGER") return ["LEVEL_1", "BETA_MANAGER"];
-  if (role === "BETA_MANAGER") return ["LEVEL_1"];
-  if (role === "LEVEL_1") return ["LEVEL_2"];
+  if (role === "MANAGER") return ["LEVEL_1", "BETA_MANAGER", "CUSTOMER"];
+  if (role === "BETA_MANAGER") return ["LEVEL_1", "CUSTOMER"];
+  if (role === "LEVEL_1") return ["LEVEL_2", "CUSTOMER"];
   if (role === "LEVEL_2") return ["CUSTOMER"];
   return [];
 }
@@ -379,7 +379,7 @@ export function getSponsorOptions(role: Role, users: User[]) {
     return users.filter((user) => user.role === "LEVEL_1");
   }
   if (role === "CUSTOMER") {
-    return users.filter((user) => user.role === "LEVEL_2");
+    return users.filter((user) => user.role === "LEVEL_2" || user.role === "LEVEL_1" || user.role === "MANAGER" || user.role === "BETA_MANAGER");
   }
   return [];
 }
