@@ -47,6 +47,13 @@ export function createApp() {
   app.use("/matrix", matrixRouter);
   app.use("/applications", applicationsRouter);
   app.use("/files", filesRouter);
+  app.get("/", (_req, res) => {
+    res.json({
+      ok: true,
+      service: "kerala-ayurvedh-backend",
+      health: "/health"
+    });
+  });
   app.use("/", helpRouter);
   app.use("/admin", adminRouter);
 
