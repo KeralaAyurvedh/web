@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ImageUp, Loader2 } from "lucide-react";
 
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://web-laqb.onrender.com").replace(/\/+$/, "");
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/+$/, "");
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 function readFileAsBase64(file: File) {

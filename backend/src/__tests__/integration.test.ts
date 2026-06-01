@@ -353,6 +353,43 @@ describe("MLM & Commission Business Rules Integration Tests", () => {
     expect(afterCount).toBe(beforeCount);
   });
 
+  it("should prevent concurrent duplicate commission processing for the same user", async () => {
+    const manager = await prisma.user.create({
+      data: {
+        name: "Concurrent Manager",
+        phone: "9912100001",
+        passwordHash: "dummyhash",
+        role: Role.MANAGER,
+        status: UserStatus.ACTIVE,
+        referralCode: "CMAN001"
+      }
+    });
+
+    const level1 = await prisma.user.create({
+      data: {
+        name: "Concurrent Level 1",
+        phone: "9912100002",
+        passwordHash: "dummyhash",
+        role: Role.LEVEL_1,
+        sponsorId: manager.id,
+        referralCode: "CL1001"
+      }
+    });
+
+    await Promise.all([
+      prisma.$transaction((tx) => createCommissionsAfterPaymentConfirmation(tx, level1.id)),
+      prisma.$transaction((tx) => createCommissionsAfterPaymentConfirmation(tx, level1.id))
+    ]);
+
+    const commissions = await prisma.commissionLedger.findMany({
+      where: { sourceUserId: level1.id }
+    });
+
+    expect(commissions).toHaveLength(1);
+    expect(commissions[0].receiverId).toBe(manager.id);
+    expect(Number(commissions[0].amount)).toBe(1500);
+  });
+
   it("should enforce the 216 confirmed customer requirement to unlock Beta Manager", async () => {
     const manager = await prisma.user.create({
       data: {
@@ -616,6 +653,27 @@ describe("MLM & Commission Business Rules Integration Tests", () => {
 
       const updatedAdmin = await prisma.user.findUniqueOrThrow({ where: { id: admin.id } });
       expect(updatedAdmin.phone).toBe("9920000104");
+    });
+
+    it("should keep destructive test-data reset disabled unless explicitly enabled", async () => {
+      const admin = await prisma.user.create({
+        data: {
+          name: "HTTP Reset Admin",
+          phone: "9920000105",
+          passwordHash: "dummyhash",
+          role: Role.ADMIN,
+          referralCode: "HPADMN02"
+        }
+      });
+
+      const response = await apiRequest("/admin/system/reset-test-data", {
+        method: "POST",
+        token: authToken(admin.id, Role.ADMIN),
+        body: {}
+      });
+
+      expect(response.status).toBe(403);
+      expect(response.data.error).toContain("disabled");
     });
 
     it("should scope non-admin order and handover visibility to related records", async () => {

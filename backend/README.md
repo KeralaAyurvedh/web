@@ -70,3 +70,24 @@ Change this password before production.
 - Each Manager can have only one Beta Manager.
 - Beta Matrix has 216 confirmed customers.
 - Beta Matrix completion releases 108000 to the root Manager once.
+
+## Verification
+
+```bash
+npm run lint
+npm run type-check
+npm test
+npm run build
+```
+
+Integration tests require a disposable local PostgreSQL database. Set `TEST_DATABASE_URL`
+before `npm test`; the test setup refuses non-local database hosts to protect staging
+and production data.
+
+## Production Notes
+
+- Set `JWT_SECRET` to a random value of at least 32 characters.
+- Set `CORS_ORIGIN` to the exact production web/mobile origins.
+- Keep `ALLOW_TEST_DATA_RESET=false` outside controlled staging.
+- Run `prisma migrate deploy` before starting a production release.
+- Use `/health` for liveness and `/health/ready` for database and environment readiness.

@@ -8,6 +8,10 @@
     "android": "expo run:android",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "tsc --noEmit",
+    "build": "expo export",
     "ios": "expo run:ios"
   },
   "dependencies": {

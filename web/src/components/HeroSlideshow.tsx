@@ -17,29 +17,21 @@ export default function HeroSlideshow() {
   const [isPlaying, setIsPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
-  const startTime = useRef<number>(Date.now());
-  const pausedTime = useRef<number>(0);
 
   // Handle slide transitions
   const nextSlide = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % images.length);
     setProgress(0);
-    startTime.current = Date.now();
-    pausedTime.current = 0;
   }, []);
 
   const prevSlide = useCallback(() => {
     setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
     setProgress(0);
-    startTime.current = Date.now();
-    pausedTime.current = 0;
   }, []);
 
   const goToSlide = (index: number) => {
     setCurrentIndex(index);
     setProgress(0);
-    startTime.current = Date.now();
-    pausedTime.current = 0;
   };
 
   // Progress Bar timer logic
@@ -51,16 +43,15 @@ export default function HeroSlideshow() {
       return;
     }
 
-    startTime.current = Date.now() - (pausedTime.current || 0);
-
     progressInterval.current = setInterval(() => {
-      const elapsed = Date.now() - startTime.current;
-      const calculatedProgress = Math.min((elapsed / AUTOPLAY_TIME) * 100, 100);
-      setProgress(calculatedProgress);
-
-      if (elapsed >= AUTOPLAY_TIME) {
-        nextSlide();
-      }
+      setProgress((currentProgress) => {
+        const nextProgress = Math.min(currentProgress + (100 / AUTOPLAY_TIME) * 100, 100);
+        if (nextProgress >= 100) {
+          nextSlide();
+          return 0;
+        }
+        return nextProgress;
+      });
     }, 100);
 
     return () => {
@@ -72,7 +63,6 @@ export default function HeroSlideshow() {
 
   const handleMouseEnter = () => {
     setIsPlaying(false);
-    pausedTime.current = Date.now() - startTime.current;
   };
 
   const handleMouseLeave = () => {

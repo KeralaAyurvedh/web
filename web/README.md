@@ -29,7 +29,7 @@ npm run start
 The website download button uses this URL by default:
 
 ```text
-http://10.156.218.252:4000/uploads/kerala-ayurvedh.apk
+/uploads/kerala-ayurvedh.apk
 ```
 
 The APK file is stored at:
@@ -42,6 +42,7 @@ To override the download URL for production, set:
 
 ```env
 NEXT_PUBLIC_APK_DOWNLOAD_URL="https://your-domain.com/uploads/kerala-ayurvedh.apk"
+NEXT_PUBLIC_API_URL="https://your-api-domain.com"
 ```
 
 ## Verification
@@ -49,5 +50,7 @@ NEXT_PUBLIC_APK_DOWNLOAD_URL="https://your-domain.com/uploads/kerala-ayurvedh.ap
 ```bash
 cd web
 npm run lint
+npm run type-check
+npm test
 npm run build
 ```

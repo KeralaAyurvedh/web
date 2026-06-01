@@ -14,6 +14,7 @@ const storageProvider = process.env.STORAGE_PROVIDER === "r2"
 const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",").map((origin) => origin.trim()).filter(Boolean)
   : undefined;
+const allowTestDataReset = process.env.ALLOW_TEST_DATA_RESET === "true";
 
 if (nodeEnv === "production" && jwtSecret === defaultJwtSecret) {
   throw new Error("JWT_SECRET must be changed before running in production");
@@ -29,6 +30,12 @@ export const config = {
   jwtSecret,
   corsOrigins,
   jsonBodyLimit: process.env.JSON_BODY_LIMIT ?? "6mb",
+  allowTestDataReset,
+  requiredEnv: {
+    databaseUrl: Boolean(process.env.DATABASE_URL),
+    jwtSecret: Boolean(process.env.JWT_SECRET),
+    corsOrigin: nodeEnv !== "production" || Boolean(process.env.CORS_ORIGIN)
+  },
   databaseStorageLimitMb: process.env.DATABASE_STORAGE_LIMIT_MB
     ? Number(process.env.DATABASE_STORAGE_LIMIT_MB)
     : undefined,

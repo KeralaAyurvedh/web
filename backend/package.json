@@ -15,7 +15,9 @@
     "prisma:studio": "prisma studio",
     "seed": "ts-node src/seed.ts",
     "workflow:test": "ts-node src/workflow-test.ts",
+    "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {

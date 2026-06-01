@@ -12,6 +12,21 @@ type Tx = Omit<
 >;
 
 export async function createCommissionsAfterPaymentConfirmation(tx: Tx, sourceUserId: string) {
+  const claimed = await tx.user.updateMany({
+    where: {
+      id: sourceUserId,
+      commissionProcessedAt: null
+    },
+    data: {
+      companyPaymentConfirmedAt: new Date(),
+      commissionProcessedAt: new Date()
+    }
+  });
+
+  if (claimed.count === 0) {
+    return;
+  }
+
   const source = await tx.user.findUnique({
     where: { id: sourceUserId },
     include: {
@@ -26,10 +41,6 @@ export async function createCommissionsAfterPaymentConfirmation(tx: Tx, sourceUs
 
   if (!source) {
     throw new Error("Commission source user not found");
-  }
-
-  if (source.commissionProcessedAt) {
-    return;
   }
 
   if (source.role === Role.LEVEL_1 && (source.sponsor?.role === Role.MANAGER || source.sponsor?.role === Role.BETA_MANAGER)) {
@@ -151,11 +162,4 @@ export async function createCommissionsAfterPaymentConfirmation(tx: Tx, sourceUs
     }
   }
 
-  await tx.user.update({
-    where: { id: source.id },
-    data: {
-      companyPaymentConfirmedAt: source.companyPaymentConfirmedAt ?? new Date(),
-      commissionProcessedAt: new Date()
-    }
-  });
 }

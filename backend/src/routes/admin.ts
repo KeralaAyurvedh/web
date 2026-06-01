@@ -2012,6 +2012,9 @@ adminRouter.post("/system/reset-test-data", async (req, res) => {
     if (actor.role !== Role.ADMIN) {
       return res.status(403).json({ error: "Only Admin can reset test data" });
     }
+    if (!config.allowTestDataReset) {
+      return res.status(403).json({ error: "Test data reset is disabled. Set ALLOW_TEST_DATA_RESET=true only in a controlled staging environment." });
+    }
 
     console.log("Starting production database test data reset...");
 

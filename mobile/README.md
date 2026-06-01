@@ -4,10 +4,10 @@ Expo mobile app for Kerala Ayurvedh distributors, customers, products, orders, p
 
 ## Backend URL
 
-The app reads the backend URL from `EXPO_PUBLIC_API_URL`. If it is not set, it falls back to the current local LAN backend:
+The app reads the backend URL from `EXPO_PUBLIC_API_URL`. If it is not set, it falls back to local development:
 
 ```text
-http://10.156.218.252:4000
+http://localhost:4000
 ```
 
 For a physical Android phone, set the URL to your computer LAN IP, for example:
@@ -22,6 +22,7 @@ For production APK builds, set it to the deployed backend HTTPS URL.
 
 ```bash
 npm install
+npm run type-check
 npm run android
 ```
 
