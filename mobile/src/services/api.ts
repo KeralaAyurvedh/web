@@ -66,12 +66,12 @@ export function formatRole(role?: string | null, isAdmin?: boolean): string {
   if (!role) return "N/A";
   const r = role.toUpperCase();
   if (r === "ADMIN") return "Admin";
-  if (r === "MANAGER") return "a3 (Manager)";
-  if (r === "BETA_MANAGER") return "a3 (Beta Manager)";
-  if (r === "LEVEL_1") return "a2 (Main Pillar)";
-  if (r === "LEVEL_2") return "a1 (Downline)";
+  if (r === "MANAGER") return "A3";
+  if (r === "BETA_MANAGER") return "A3";
+  if (r === "LEVEL_1") return "A2";
+  if (r === "LEVEL_2") return "A1";
   if (r === "CUSTOMER") return "Customer";
-  return role.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  return role.replaceAll("_", " ").toUpperCase();
 }
 
 export function formatCountAmount(row: CountAmountRow, isAdmin?: boolean) {

@@ -541,15 +541,15 @@ function TreeLegend({ userRole }: { userRole: Role }) {
   if (userRole === "ADMIN" || userRole === "MANAGER" || userRole === "BETA_MANAGER") {
     items.push(
       { label: "Company", style: styles.legendCompany },
-      { label: "a3 (Manager)", style: styles.legendManager },
-      { label: "a3 (Beta Manager)", style: styles.legendBeta },
-      { label: "a2 (Main Pillar)", style: styles.legendLevel },
-      { label: "a1 (Downline)", style: styles.legendLevelTwo },
+      { label: "A3", style: styles.legendManager },
+      { label: "A3 (Beta)", style: styles.legendBeta },
+      { label: "A2", style: styles.legendLevel },
+      { label: "A1", style: styles.legendLevelTwo },
       { label: "Customer", style: styles.legendCustomer }
     );
   } else if (userRole === "LEVEL_1") {
     items.push(
-      { label: "a1 (Downline)", style: styles.legendLevelTwo },
+      { label: "A1", style: styles.legendLevelTwo },
       { label: "Customer", style: styles.legendCustomer }
     );
   } else if (userRole === "LEVEL_2") {

@@ -15,8 +15,8 @@ import { colors } from "../constants/theme";
 import { SectionHeader, EmptyState } from "../components/UI/FormControls";
 
 function formatCommissionType(type: string) {
-  if (type === "DIRECT_LEVEL_1_JOIN") return "a3 Direct Join";
-  if (type === "DIRECT_LEVEL_2_JOIN") return "a2 Direct Join";
+  if (type === "DIRECT_LEVEL_1_JOIN") return "A2 Join";
+  if (type === "DIRECT_LEVEL_2_JOIN") return "A1 Join";
   if (type === "UPLINE_LEVEL_2_JOIN") return "Upline Passive";
   if (type === "CUSTOMER_JOIN") return "Customer Join";
   return type.replaceAll("_", " ");
