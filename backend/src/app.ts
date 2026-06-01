@@ -14,6 +14,7 @@ import { adminRouter } from "./routes/admin";
 import { applicationsRouter } from "./routes/applications";
 import { helpRouter } from "./routes/help";
 import { filesRouter } from "./routes/files";
+import { paymentVerificationsRouter } from "./routes/paymentVerifications";
 import { securityHeaders } from "./middlewares/securityHeaders";
 
 function storagePath(root: string) {
@@ -42,11 +43,15 @@ export function createApp() {
   app.use("/users", usersRouter);
   app.use("/products", productsRouter);
   app.use("/orders", ordersRouter);
-  app.use("/payments", paymentsRouter);
+  app.use("/payments", paymentVerificationsRouter); // public registration payments
+  app.use("/payments", paymentsRouter); // existing payments
   app.use("/commissions", commissionsRouter);
   app.use("/matrix", matrixRouter);
   app.use("/applications", applicationsRouter);
   app.use("/files", filesRouter);
+  app.use("/admin/payments", paymentVerificationsRouter); // admin actions
+  app.use("/admin", adminRouter);
+
   app.get("/", (_req, res) => {
     res.json({
       ok: true,
@@ -54,8 +59,8 @@ export function createApp() {
       health: "/health"
     });
   });
+
   app.use("/", helpRouter);
-  app.use("/admin", adminRouter);
 
   app.use((_req, res) => {
     res.status(404).json({ error: "Route not found" });

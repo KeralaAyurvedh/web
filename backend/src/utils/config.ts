@@ -62,5 +62,7 @@ export const config = {
     supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || undefined,
     supabaseBucket: process.env.SUPABASE_STORAGE_BUCKET || process.env.R2_BUCKET || undefined,
     signedUrlExpiresSeconds: Number(process.env.STORAGE_SIGNED_URL_EXPIRES_SECONDS ?? 300)
-  }
+  },
+  upiId: process.env.KERALA_AYURVEDH_UPI_ID || "keralaayurvedh@upi",
+  registrationFee: Number(process.env.REGISTRATION_FEE ?? 299)
 };

@@ -11,7 +11,8 @@ import {
   Alert,
   TextInput,
   ScrollView,
-  StatusBar as NativeStatusBar
+  StatusBar as NativeStatusBar,
+  BackHandler
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -359,11 +360,7 @@ export default function App() {
     if (nextSession) {
       try {
         await AsyncStorage.setItem("user_session", JSON.stringify(nextSession));
-        const seen = await AsyncStorage.getItem(firstTimeGuideKey(nextSession.user.id));
-        setShowGuide(seen !== "true");
-      } catch {
-        setShowGuide(true);
-      }
+      } catch {}
     } else {
       try {
         await AsyncStorage.removeItem("user_session");
@@ -404,6 +401,25 @@ export default function App() {
       setActiveTab("dashboard");
     }
   }, [activeTab, session?.user.role]);
+
+  useEffect(() => {
+    const handleBackPress = () => {
+      if (!session) {
+        return false;
+      }
+      if (activeTab !== "dashboard") {
+        navigate("dashboard");
+        return true;
+      }
+      return false;
+    };
+
+    const subscription = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
+
+    return () => {
+      subscription.remove();
+    };
+  }, [session, activeTab]);
 
   // Global Search fuzzy matching engine
   const searchResults = useMemo(() => {
@@ -522,7 +538,6 @@ export default function App() {
           setMenuOpen(false);
         }}
       />
-      <FirstTimeGuideModal visible={showGuide} role={session.user.role} onClose={closeGuide} />
 
       {/* Global Search Modal */}
       <Modal visible={searchModalVisible} animationType="slide" transparent={false} onRequestClose={() => setSearchModalVisible(false)}>
@@ -593,7 +608,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f7fbf6",
     paddingTop: Platform.OS === "android" ? (NativeStatusBar.currentHeight && NativeStatusBar.currentHeight > 0 ? NativeStatusBar.currentHeight : 32) : 0,
-    paddingBottom: Platform.OS === "ios" ? 20 : 8
+    paddingBottom: Platform.OS === "ios" ? 20 : 0
   },
   screen: {
     flex: 1
@@ -844,7 +859,7 @@ const styles = StyleSheet.create({
     borderTopColor: "#e7eee7",
     paddingHorizontal: 14,
     paddingTop: 8,
-    paddingBottom: Platform.OS === "ios" ? 18 : 10,
+    paddingBottom: Platform.OS === "ios" ? 28 : 56,
     shadowColor: colors.slate900,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,

@@ -69,6 +69,7 @@ export const treeRoleFilters: Array<Role | "ALL" | "ACTIVE_ONLY"> = ["ALL", "MAN
 export const adminSections: Array<{ key: AdminSection; label: string }> = [
   { key: "overview", label: "Overview" },
   { key: "applications", label: "Applications" },
+  { key: "payment-verifications", label: "Payment Verifications" },
   { key: "users", label: "Users" },
   { key: "orders", label: "Orders" },
   { key: "payments", label: "Payments" },

@@ -159,6 +159,34 @@ applicationsRouter.post("/status", rateLimit({ keyPrefix: "applications-status",
   });
 
   if (!application) {
+    const verifications = await prisma.paymentVerification.findMany({
+      where: {
+        status: { in: ["PENDING_VERIFICATION", "REJECTED"] }
+      },
+      orderBy: { submittedAt: "desc" }
+    });
+
+    const userPayment = verifications.find((v) => {
+      const data = v.applicantData as any;
+      return data && data.phone === parsed.data.phone;
+    });
+
+    if (userPayment) {
+      const applicant = userPayment.applicantData as any;
+      return res.json({
+        application: {
+          id: userPayment.id,
+          name: applicant.name,
+          phone: applicant.phone,
+          requestedRole: userPayment.roleApplyingFor,
+          status: userPayment.status,
+          rejectionReason: userPayment.rejectionReason,
+          createdAt: userPayment.submittedAt,
+          decidedAt: userPayment.verifiedAt
+        }
+      });
+    }
+
     return res.status(404).json({ error: "No application found for this phone number" });
   }
 

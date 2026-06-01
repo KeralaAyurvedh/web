@@ -205,6 +205,8 @@ model User {
   auditLogs        AuditLog[] @relation("AuditActor")
   betaMatrix       BetaMatrix? @relation("BetaManagerMatrix")
   managerBetaMatrix BetaMatrix? @relation("RootManagerMatrix")
+  addedPayments    PaymentVerification[] @relation("AddedPayments")
+  verifiedPayments PaymentVerification[] @relation("VerifiedPayments")
 
   profileUnlocked  Boolean    @default(false)
 
@@ -496,4 +498,29 @@ model AuditLog {
   @@index([actorId])
   @@index([entityType])
   @@index([entityId])
+}
+
+enum PaymentVerificationStatus {
+  PENDING_VERIFICATION
+  APPROVED
+  REJECTED
+}
+
+model PaymentVerification {
+  id                 String                    @id @default(uuid())
+  applicantData      Json                      // Stores name, phone, email, sponsorPhone/sponsorReferralCode, requestedRole, aadhaarNumber, panNumber, etc.
+  addedByUserId      String?
+  addedByUser        User?                     @relation("AddedPayments", fields: [addedByUserId], references: [id])
+  roleApplyingFor    Role
+  transactionId      String?
+  screenshotUrl      String?
+  amount             Int                       @default(299)
+  status             PaymentVerificationStatus @default(PENDING_VERIFICATION)
+  rejectionReason    String?
+  submittedAt        DateTime                  @default(now())
+  verifiedAt         DateTime?
+  verifiedByAdminId  String?
+  verifiedByAdmin    User?                     @relation("VerifiedPayments", fields: [verifiedByAdminId], references: [id])
+
+  @@index([status])
 }

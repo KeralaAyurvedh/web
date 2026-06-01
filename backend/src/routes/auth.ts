@@ -61,6 +61,34 @@ authRouter.post("/login", rateLimit({ keyPrefix: "auth-login", windowMs: 15 * 60
   });
 
   if (!user) {
+    const verifications = await prisma.paymentVerification.findMany({
+      where: {
+        status: { in: ["PENDING_VERIFICATION", "REJECTED"] }
+      },
+      orderBy: { submittedAt: "desc" }
+    });
+
+    const userPayment = verifications.find((v) => {
+      const data = v.applicantData as any;
+      return data && data.phone === parsed.data.phone;
+    });
+
+    if (userPayment) {
+      if (userPayment.status === "PENDING_VERIFICATION") {
+        return res.status(403).json({
+          error: "Payment under verification",
+          status: "pending_verification"
+        });
+      } else if (userPayment.status === "REJECTED") {
+        return res.status(403).json({
+          error: "Payment rejected",
+          status: "rejected",
+          reason: userPayment.rejectionReason || "No reason provided",
+          verificationId: userPayment.id
+        });
+      }
+    }
+
     recordFailedLogin(parsed.data.phone, req.ip);
     console.log(`[LOGIN FAILED] Phone: ${parsed.data.phone} - Reason: No account found with this phone number. IP: ${req.ip}`);
     return res.status(401).json({ error: "No account found with this phone number." });

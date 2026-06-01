@@ -18,6 +18,7 @@ import {
   SectionHeader,
   ListItem
 } from "../components/UI/FormControls";
+import { PaymentGateScreen } from "./PaymentGateScreen";
 import {
   defaultCreateRole,
   createRoleOptions,
@@ -37,6 +38,8 @@ export function NetworkScreen({ session }: { session: Session }) {
   const [privacyConsentAccepted, setPrivacyConsentAccepted] = useState(false);
   const [role, setRole] = useState<Role>(defaultCreateRole(session.user.role));
   const [sponsorId, setSponsorId] = useState("");
+  const [showPaymentGate, setShowPaymentGate] = useState(false);
+  const [paymentApplicantData, setPaymentApplicantData] = useState<any>(null);
 
   async function loadNetwork() {
     try {
@@ -108,18 +111,17 @@ export function NetworkScreen({ session }: { session: Session }) {
           })
         });
       } else {
-        await apiRequest<{ application: MemberApplication }>("/applications", {
-          method: "POST",
-          body: JSON.stringify({
-            name,
-            phone,
-            email: email || undefined,
-            requestedRole: role,
-            sponsorPhone: session.user.phone,
-            aadhaarNumber: aadhaarNumber || undefined,
-            privacyConsentAccepted: true
-          })
+        setPaymentApplicantData({
+          name,
+          phone,
+          email: email || undefined,
+          sponsorPhone: session.user.phone,
+          aadhaarNumber: aadhaarNumber || undefined,
+          privacyConsentAccepted: true
         });
+        setShowPaymentGate(true);
+        setLoading(false);
+        return;
       }
       setName("");
       setPhone("");
@@ -172,6 +174,30 @@ export function NetworkScreen({ session }: { session: Session }) {
   const betaProgressText = selfBetaEligibility
     ? `${selfBetaEligibility.confirmedCustomers}/${selfBetaEligibility.requiredCustomers} confirmed customers`
     : "Tap Refresh to check customer progress";
+
+  if (showPaymentGate) {
+    return (
+      <PaymentGateScreen
+        applicantData={paymentApplicantData}
+        role={role}
+        addedByUserId={session.user.id}
+        sessionToken={session.token}
+        onSuccess={() => {
+          setShowPaymentGate(false);
+          setName("");
+          setPhone("");
+          setEmail("");
+          setAadhaarNumber("");
+          setPrivacyConsentAccepted(false);
+          setSponsorId("");
+          loadNetwork();
+        }}
+        onCancel={() => {
+          setShowPaymentGate(false);
+        }}
+      />
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.content}>

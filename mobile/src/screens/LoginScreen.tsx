@@ -17,6 +17,7 @@ import { Role, Session, MemberApplication, ApplicationStatusResult } from "../co
 import { apiRequest, formatRole } from "../services/api";
 import { colors } from "../constants/theme";
 import { Input, OptionList, PrimaryButton } from "../components/UI/FormControls";
+import { PaymentGateScreen } from "./PaymentGateScreen";
 
 const logoImage = require("../../assets/logo.png");
 
@@ -32,6 +33,8 @@ export function LoginScreen({ onLogin }: { onLogin: (session: Session) => void }
   const [password, setPassword] = useState("");
   const [showApplication, setShowApplication] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showPaymentGate, setShowPaymentGate] = useState(false);
+  const [paymentApplicantData, setPaymentApplicantData] = useState<any>(null);
 
   // Application fields
   const [appName, setAppName] = useState("");
@@ -86,8 +89,20 @@ export function LoginScreen({ onLogin }: { onLogin: (session: Session) => void }
         body: JSON.stringify({ phone, password })
       });
       onLogin(result);
-    } catch (error) {
-      Alert.alert("Login failed", error instanceof Error ? error.message : "Please try again");
+    } catch (error: any) {
+      if (error.message === "Payment under verification") {
+        Alert.alert(
+          "Payment under verification",
+          "Your ₹299 registration payment is currently under review by our company administrators. This usually takes 1-2 hours. Please check back later."
+        );
+      } else if (error.message?.startsWith("Payment rejected")) {
+        Alert.alert(
+          "Payment Rejected",
+          `${error.message}\n\nYou can click 'Apply for login' and resubmit your details with a valid transaction reference.`
+        );
+      } else {
+        Alert.alert("Login failed", error instanceof Error ? error.message : "Please try again");
+      }
     } finally {
       setLoading(false);
     }
@@ -123,33 +138,15 @@ export function LoginScreen({ onLogin }: { onLogin: (session: Session) => void }
       return;
     }
 
-    try {
-      setLoading(true);
-      await apiRequest<{ application: MemberApplication }>("/applications", {
-        method: "POST",
-        body: JSON.stringify({
-          name: appName,
-          phone: appPhone,
-          email: appEmail,
-          sponsorReferralCode: appReferralCode || undefined,
-          aadhaarNumber: appAadhaar || undefined,
-          privacyConsentAccepted: true
-        })
-      });
-      setAppName("");
-      setAppPhone("");
-      setAppEmail("");
-      setAppReferralCode("");
-      setResolvedSponsor(null);
-      setAppAadhaar("");
-      setAppPrivacyConsentAccepted(false);
-      setShowApplication(false);
-      Alert.alert("Application submitted", "Company Admin will review and create your login.");
-    } catch (error) {
-      Alert.alert("Application", error instanceof Error ? error.message : "Could not submit application");
-    } finally {
-      setLoading(false);
-    }
+    setPaymentApplicantData({
+      name: appName,
+      phone: appPhone,
+      email: appEmail,
+      sponsorReferralCode: appReferralCode || undefined,
+      aadhaarNumber: appAadhaar || undefined,
+      privacyConsentAccepted: true
+    });
+    setShowPaymentGate(true);
   }
 
   async function checkApplicationStatus() {
@@ -280,6 +277,37 @@ export function LoginScreen({ onLogin }: { onLogin: (session: Session) => void }
                   <Text style={styles.secondaryButtonText}>Back to login</Text>
                 </Pressable>
               </>
+            ) : showPaymentGate ? (
+              <PaymentGateScreen
+                applicantData={paymentApplicantData}
+                role={resolvedSponsor?.determinedRole || "CUSTOMER"}
+                onSuccess={(verificationId) => {
+                  setShowPaymentGate(false);
+                  setShowApplication(false);
+                  setAppName("");
+                  setAppPhone("");
+                  setAppEmail("");
+                  setAppReferralCode("");
+                  setResolvedSponsor(null);
+                  setAppAadhaar("");
+                  setAppPrivacyConsentAccepted(false);
+                  setStatusPhone(appPhone);
+                  // Check status to show details
+                  setLoading(true);
+                  apiRequest<{ application: ApplicationStatusResult }>("/applications/status", {
+                    method: "POST",
+                    body: JSON.stringify({ phone: appPhone })
+                  })
+                    .then((res) => {
+                      setApplicationStatus(res.application);
+                    })
+                    .catch(() => {})
+                    .finally(() => setLoading(false));
+                }}
+                onCancel={() => {
+                  setShowPaymentGate(false);
+                }}
+              />
             ) : showApplication ? (
               <>
                 <Text style={styles.cardTitle}>Apply for login</Text>
@@ -453,7 +481,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "900",
     letterSpacing: 1.5,
-    textTransform: "none",
+    textTransform: "capitalize",
     textAlign: "center"
   },
   cardTitle: {

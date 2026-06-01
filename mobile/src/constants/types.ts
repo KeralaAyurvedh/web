@@ -359,7 +359,34 @@ export type ApplicationStatusResult = Pick<MemberApplication, "id" | "name" | "p
   decidedAt?: string | null;
 };
 
-export type AdminSection = "overview" | "applications" | "users" | "orders" | "payments" | "commissions" | "reports" | "help" | "system" | "matrix" | "audit" | "security";
+export type PaymentVerificationStatus = "PENDING_VERIFICATION" | "APPROVED" | "REJECTED";
+
+export type PaymentVerification = {
+  id: string;
+  applicantData: {
+    name: string;
+    phone: string;
+    email?: string | null;
+    sponsorReferralCode?: string | null;
+    sponsorPhone?: string | null;
+    aadhaarNumber?: string | null;
+    panNumber?: string | null;
+    privacyConsentAccepted?: boolean;
+    password?: string | null;
+  };
+  addedByUserId?: string | null;
+  roleApplyingFor: Role;
+  transactionId?: string | null;
+  screenshotUrl?: string | null;
+  amount: number;
+  status: PaymentVerificationStatus;
+  rejectionReason?: string | null;
+  submittedAt: string;
+  verifiedAt?: string | null;
+  verifiedByAdminId?: string | null;
+};
+
+export type AdminSection = "overview" | "applications" | "users" | "orders" | "payments" | "commissions" | "reports" | "help" | "system" | "matrix" | "audit" | "security" | "payment-verifications";
 export type MoreMenuItem = { key: TabKey | "logout" | "update"; title: string; description: string; icon: string; adminOnly?: boolean; danger?: boolean };
 export type HelpStep = { icon: string; title: string; text: string; route?: TabKey; action?: string };
 export type HelpGuide = { role: Role; title: string; message: string; steps: HelpStep[]; nextActions: HelpStep[] };

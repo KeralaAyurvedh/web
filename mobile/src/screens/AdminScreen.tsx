@@ -39,7 +39,9 @@ import {
   AdminReport,
   BackendHelpTopic,
   HelpTopicRole,
-  HelpTopicCategory
+  HelpTopicCategory,
+  PaymentVerification,
+  PaymentVerificationStatus
 } from "../constants/types";
 import {
   apiRequest,
@@ -116,6 +118,9 @@ export function AdminScreen({
   const [applicationPassword, setApplicationPassword] = useState("Welcome@123");
   const [applicationSponsorId, setApplicationSponsorId] = useState("");
   const [applicationRejectReason, setApplicationRejectReason] = useState("");
+  const [paymentVerifications, setPaymentVerifications] = useState<PaymentVerification[]>([]);
+  const [paymentVerificationFilter, setPaymentVerificationFilter] = useState<"ALL" | PaymentVerificationStatus>("PENDING_VERIFICATION");
+  const [paymentRejectReason, setPaymentRejectReason] = useState("");
   const [userSearch, setUserSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<Role | "ALL">("ALL");
   const [statusFilter, setStatusFilter] = useState<UserStatus | "ALL">("ALL");
@@ -180,6 +185,11 @@ export function AdminScreen({
     return applications.filter((application) => application.status === applicationFilter);
   }, [applicationFilter, applications]);
 
+  const filteredPaymentVerifications = useMemo(() => {
+    if (paymentVerificationFilter === "ALL") return paymentVerifications;
+    return paymentVerifications.filter((pv) => pv.status === paymentVerificationFilter);
+  }, [paymentVerificationFilter, paymentVerifications]);
+
   const filteredSystemTables = useMemo(() => {
     const term = systemTableSearch.trim().toLowerCase();
     if (!databaseStats) return [];
@@ -230,7 +240,8 @@ export function AdminScreen({
         upgradesResult,
         reassignmentsResult,
         applicationsResult,
-        reportResult
+        reportResult,
+        paymentsResult
       ] = await Promise.all([
         apiRequest<{ stats: AdminStats }>("/admin/dashboard", {
           headers: { Authorization: `Bearer ${session.token}` }
@@ -261,6 +272,9 @@ export function AdminScreen({
         }),
         apiRequest<{ report: AdminReport }>("/admin/reports", {
           headers: { Authorization: `Bearer ${session.token}` }
+        }),
+        apiRequest<{ payments: PaymentVerification[] }>("/admin/payments/all", {
+          headers: { Authorization: `Bearer ${session.token}` }
         })
       ]);
       setStats(statsResult.stats);
@@ -273,6 +287,7 @@ export function AdminScreen({
       setReassignmentRequests(reassignmentsResult.requests);
       setApplications(applicationsResult.applications);
       setReport(reportResult.report);
+      setPaymentVerifications(paymentsResult.payments);
       await loadSystemMonitor(false);
     } catch (error) {
       Alert.alert("Admin panel", error instanceof Error ? error.message : "Could not load admin panel");
@@ -758,6 +773,57 @@ export function AdminScreen({
     }
   }
 
+  async function approvePaymentVerification(paymentId: string) {
+    try {
+      setLoading(true);
+      const result = await apiRequest<{ ok: boolean; credentials: { phone: string; password: string; emailSent?: boolean; emailReason?: string } }>(`/admin/payments/${paymentId}/approve`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.token}` }
+      });
+      await loadAdminPanel();
+      Alert.alert(
+        "Payment Approved",
+        [
+          `User created successfully!`,
+          `Login Phone: ${result.credentials.phone}`,
+          `Password: ${result.credentials.password}`,
+          `Email: ${result.credentials.emailSent ? "Sent" : "Not sent"}`,
+          result.credentials.emailSent ? "" : `Reason: ${result.credentials.emailReason ?? "Unknown email error"}`
+        ].filter(Boolean).join("\n")
+      );
+    } catch (error) {
+      Alert.alert("Payment Approval Failed", error instanceof Error ? error.message : "Could not approve payment");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function requestApprovePaymentVerification(paymentId: string) {
+    confirmAction("Approve Payment Verification?", "This will verify the ₹299 fee, activate the user, and auto-generate their login credentials.", () => approvePaymentVerification(paymentId));
+  }
+
+  async function rejectPaymentVerification(paymentId: string) {
+    if (!paymentRejectReason.trim()) {
+      Alert.alert("Rejection Reason", "Please provide a reason for rejecting this payment.");
+      return;
+    }
+    try {
+      setLoading(true);
+      await apiRequest<{ ok: boolean }>(`/admin/payments/${paymentId}/reject`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.token}` },
+        body: JSON.stringify({ reason: paymentRejectReason })
+      });
+      setPaymentRejectReason("");
+      await loadAdminPanel();
+      Alert.alert("Success", "Payment verification rejected successfully.");
+    } catch (error) {
+      Alert.alert("Rejection Failed", error instanceof Error ? error.message : "Could not reject payment verification");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function resetTestData() {
     try {
       setLoading(true);
@@ -832,8 +898,10 @@ export function AdminScreen({
   }
 
   useEffect(() => {
-    loadAdminPanel();
-  }, []);
+    if (session.user.role === "ADMIN") {
+      loadAdminPanel();
+    }
+  }, [session.user.role]);
 
   if (session.user.role !== "ADMIN") {
     return (
@@ -956,6 +1024,114 @@ export function AdminScreen({
                     <Text style={styles.mutedText}>
                       {application.approvedUser ? `Created user: ${application.approvedUser.name}` : application.rejectionReason ?? "Decision completed"}
                     </Text>
+                  )}
+                </View>
+              );
+            })
+          )}
+        </View>
+      ) : null}
+
+      {adminSection === "payment-verifications" ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Registration Payment Verifications</Text>
+          <Text style={styles.inputLabel}>Payment verification status filter</Text>
+          <OptionList
+            items={["ALL", "PENDING_VERIFICATION", "APPROVED", "REJECTED"].map((status) => ({ id: status }))}
+            selectedId={paymentVerificationFilter}
+            emptyText="No statuses."
+            onSelect={(value) => setPaymentVerificationFilter(value as "ALL" | PaymentVerificationStatus)}
+            renderLabel={(item) => item.id === "ALL" ? "All" : item.id.replace("_", " ")}
+          />
+          <Input 
+            label="Reject reason (required before Reject)" 
+            value={paymentRejectReason} 
+            onChangeText={setPaymentRejectReason} 
+            placeholder="Enter reason if rejecting payment..."
+          />
+          {filteredPaymentVerifications.length === 0 ? (
+            <Text style={styles.mutedText}>No payment verifications found for this filter.</Text>
+          ) : (
+            filteredPaymentVerifications.map((payment) => {
+              const applicant = payment.applicantData;
+              const hasScreenshot = !!payment.screenshotUrl;
+              
+              // Extract fileAsset ID if screenshot is present
+              let fileId: string | null = null;
+              if (payment.screenshotUrl) {
+                const match = payment.screenshotUrl.match(/\/files\/([^\/]+)\/raw/);
+                fileId = match ? match[1] : null;
+              }
+
+              // Resolve sponsor name if addedByUserId is set
+              const sponsorUser = payment.addedByUserId ? users.find((u) => u.id === payment.addedByUserId) : null;
+
+              return (
+                <View key={payment.id} style={styles.adminListBlock}>
+                  <Text style={styles.listTitle}>{applicant.name}</Text>
+                  <Text style={styles.listSubtitle}>
+                    {formatRole(payment.roleApplyingFor)} - {applicant.phone}
+                  </Text>
+                  
+                  <View style={{ marginVertical: 6, padding: 8, backgroundColor: colors.slate100, borderRadius: 6 }}>
+                    <Text style={styles.detailLine}>
+                      Sponsor: {sponsorUser ? `${sponsorUser.name} (${sponsorUser.phone})` : (applicant.sponsorReferralCode ? `Referral: ${applicant.sponsorReferralCode}` : (applicant.sponsorPhone ? `Sponsor Phone: ${applicant.sponsorPhone}` : "None (Direct)"))}
+                    </Text>
+                    <Text style={styles.detailLine}>
+                      Email: {applicant.email || "—"}
+                    </Text>
+                    <Text style={styles.detailLine}>
+                      Aadhaar: {applicant.aadhaarNumber || "—"}
+                    </Text>
+                    <Text style={styles.detailLine}>
+                      PAN: {applicant.panNumber || "—"}
+                    </Text>
+                    <Text style={styles.detailLine}>
+                      UTR/Txn ID: {payment.transactionId || "—"}
+                    </Text>
+                    <Text style={styles.detailLine}>
+                      Submitted: {formatDateTime(payment.submittedAt)}
+                    </Text>
+                    <Text style={styles.detailLine}>
+                      Amount: {formatMoney(payment.amount)}
+                    </Text>
+                    <Text style={styles.detailLine}>
+                      Status: <Text style={{ fontWeight: "bold", color: payment.status === "APPROVED" ? colors.brand500 : (payment.status === "REJECTED" ? colors.danger : "#b45309") }}>{payment.status.replace("_", " ")}</Text>
+                    </Text>
+                  </View>
+
+                  {hasScreenshot && fileId ? (
+                    <Pressable 
+                      style={[styles.adminActionButton, { backgroundColor: colors.slate100, borderColor: colors.slate200, marginBottom: 8 }]} 
+                      onPress={() => openPaymentProof(fileId!)}
+                    >
+                      <Text style={[styles.adminActionText, { color: colors.brand700 }]}>👁️ View Uploaded Receipt</Text>
+                    </Pressable>
+                  ) : (
+                    <Text style={[styles.mutedText, { marginBottom: 8 }]}>No receipt image uploaded</Text>
+                  )}
+
+                  {payment.status === "PENDING_VERIFICATION" ? (
+                    <View style={styles.statusActions}>
+                      <Pressable style={styles.adminActionButton} onPress={() => requestApprovePaymentVerification(payment.id)}>
+                        <Text style={styles.adminActionText}>Approve & Activate</Text>
+                      </Pressable>
+                      <Pressable style={styles.adminDangerButton} onPress={() => rejectPaymentVerification(payment.id)}>
+                        <Text style={styles.adminDangerText}>Reject</Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <View style={{ marginTop: 4 }}>
+                      {payment.status === "APPROVED" ? (
+                        <Text style={styles.mutedText}>
+                          Verified At: {payment.verifiedAt ? formatDateTime(payment.verifiedAt) : "—"}
+                        </Text>
+                      ) : (
+                        <Text style={[styles.mutedText, { color: colors.danger }]}>
+                          Rejection Reason: {payment.rejectionReason || "No reason specified"}
+                        </Text>
+                      )}
+                    </View>
                   )}
                 </View>
               );
