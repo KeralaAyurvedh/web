@@ -36,6 +36,8 @@ import { SectionHeader, Input, TextArea, OptionList, PrimaryButton } from "../co
 
 const logoImage = require("../../assets/logo.png");
 const placeholderImage = require("../../assets/placeholder.png");
+const journeyHeaderImage = require("../../assets/journey_header.png");
+const teamPhotoImage = require("../../assets/team_photo.png");
 const bannerImages = [
   require("../../assets/banner1.jpeg"),
   require("../../assets/banner2.jpeg"),
@@ -279,7 +281,8 @@ export function DashboardScreen({ session, onNavigate }: { session: Session; onN
         )}
       </View>
 
-      <BrandIntro />
+      <TrustedProductSection />
+      <JourneyPrinciplesSection />
 
       <CategoryRail
         categories={catalogCategories(products)}
@@ -490,11 +493,8 @@ function PromoSlideshow() {
   return (
     <View style={styles.sliderWrap}>
       <Image source={bannerImages[slide]} style={styles.sliderImage as any} resizeMode="cover" />
-      <View style={styles.sliderOverlay}>
-        <Text style={styles.sliderBadge}>SEASONAL OFFER</Text>
-        <Text style={styles.sliderTitle}>Natural Weight Management Support</Text>
-        <Text style={styles.sliderSubtitle}>Discover authentic, daily Ayurvedic formulations</Text>
-        <View style={styles.sliderDots}>
+      <View style={styles.sliderOverlayClean}>
+        <View style={styles.sliderDotsClean}>
           {bannerImages.map((_, idx) => (
             <View key={idx} style={[styles.sliderDot, slide === idx && styles.sliderDotActive]} />
           ))}
@@ -504,15 +504,52 @@ function PromoSlideshow() {
   );
 }
 
-function BrandIntro() {
+function TrustedProductSection() {
+  const points = [
+    { icon: "🏆", text: "Crafted with authentic Ayurvedic methodology" },
+    { icon: "⚡", text: "Balanced botanical blend for daily support" },
+    { icon: "🛡️", text: "Meets rigorous quality benchmarks in our specialized facilities" }
+  ];
+
   return (
-    <View style={styles.brandIntro}>
-      <View style={styles.brandIntroAccent} />
-      <View style={styles.brandIntroContent}>
-        <Text style={styles.brandIntroTitle}>Authentic Ayurvedh</Text>
-        <Text style={styles.brandIntroText}>
-          We craft our weight loss powders and wellness supplements using traditional methodology combined with modern quality checks. Each product is formulated to support natural vitality, daily balance, and holistic wellness routines.
-        </Text>
+    <View style={styles.trustedBox}>
+      <Text style={styles.kickerText}>AUTHENTIC AYURVEDH</Text>
+      <Text style={styles.trustedHeading}>A trusted Kerala Ayurvedh product</Text>
+      <Text style={styles.trustedDescription}>
+        True weight loss isn't about starving the body, it's about balancing your Agni (digestive fire) and listening to nature.
+      </Text>
+      <View style={styles.trustedPointsGrid}>
+        {points.map((p, idx) => (
+          <View key={idx} style={styles.trustedPointCard}>
+            <View style={styles.trustedPointIconBox}>
+              <Text style={styles.trustedPointIcon}>{p.icon}</Text>
+            </View>
+            <Text style={styles.trustedPointText}>{p.text}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function JourneyPrinciplesSection() {
+  return (
+    <View style={styles.journeyBox}>
+      <View style={styles.journeyHeaderImageWrap}>
+        <Image source={journeyHeaderImage} style={styles.journeyHeaderImage as any} resizeMode="cover" />
+      </View>
+      
+      <Text style={[styles.kickerText, { marginTop: 24 }]}>OUR PRINCIPLES</Text>
+      <Text style={styles.trustedHeading}>What guides our Ayurvedh journey</Text>
+      
+      <View style={styles.journeyTeamCard}>
+        <Image source={teamPhotoImage} style={styles.journeyTeamImage as any} resizeMode="cover" />
+        <View style={styles.journeyTeamContent}>
+          <Text style={styles.journeyValueTitle}>I N T E G R I T Y</Text>
+          <Text style={styles.journeyValueText}>
+            Every ingredient is carefully sourced and transparently selected to support your wellness with honesty.
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -1955,5 +1992,134 @@ const styles = StyleSheet.create({
     textAlign: "center",
     width: "100%",
     paddingVertical: 12
+  },
+  sliderOverlayClean: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingBottom: 12,
+    alignItems: "center",
+    justifyContent: "flex-end"
+  },
+  sliderDotsClean: {
+    flexDirection: "row",
+    gap: 6
+  },
+  trustedBox: {
+    padding: 20,
+    marginHorizontal: 16,
+    marginTop: 24,
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#eef3ee"
+  },
+  kickerText: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: colors.brand700,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    marginBottom: 6
+  },
+  trustedHeading: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: colors.slate900,
+    lineHeight: 26,
+    marginBottom: 8
+  },
+  trustedDescription: {
+    fontSize: 13,
+    color: colors.slate500,
+    lineHeight: 20,
+    fontWeight: "700",
+    marginBottom: 20
+  },
+  trustedPointsGrid: {
+    gap: 10
+  },
+  trustedPointCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f6faf6",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#e2eee2",
+    paddingVertical: 14,
+    paddingHorizontal: 16
+  },
+  trustedPointIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#e2eee2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14
+  },
+  trustedPointIcon: {
+    fontSize: 14,
+    color: colors.brand800
+  },
+  trustedPointText: {
+    flex: 1,
+    fontSize: 12.5,
+    color: colors.slate700,
+    fontWeight: "800",
+    lineHeight: 18
+  },
+  journeyBox: {
+    paddingHorizontal: 16,
+    marginTop: 24,
+    paddingBottom: 16
+  },
+  journeyHeaderImageWrap: {
+    width: "100%",
+    height: 260,
+    borderRadius: 24,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#eef3ee"
+  },
+  journeyHeaderImage: {
+    width: "100%",
+    height: "100%"
+  },
+  journeyTeamCard: {
+    marginTop: 14,
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#eef3ee",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8
+  },
+  journeyTeamImage: {
+    width: "100%",
+    height: 200
+  },
+  journeyTeamContent: {
+    padding: 18,
+    borderTopWidth: 1,
+    borderColor: "#f6faf6"
+  },
+  journeyValueTitle: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: colors.slate900,
+    letterSpacing: 2,
+    marginBottom: 8
+  },
+  journeyValueText: {
+    fontSize: 13,
+    color: colors.slate500,
+    lineHeight: 20,
+    fontWeight: "700"
   }
 });
