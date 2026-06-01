@@ -281,6 +281,7 @@ export function DashboardScreen({ session, onNavigate }: { session: Session; onN
         )}
       </View>
 
+      <PromoSlideshow />
       <TrustedProductSection />
       <JourneyPrinciplesSection />
 
