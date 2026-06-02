@@ -3,7 +3,7 @@ import Image from 'next/image';
 import HeroSlideshow from '@/components/HeroSlideshow';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 
-const apkDownloadUrl = process.env.NEXT_PUBLIC_APK_DOWNLOAD_URL ?? '/uploads/kerala-ayurvedh.apk';
+const apkDownloadUrl = process.env.NEXT_PUBLIC_APK_DOWNLOAD_URL || '/uploads/kerala-ayurvedh.apk';
 
 
 export default function Home() {
