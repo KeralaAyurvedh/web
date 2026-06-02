@@ -953,21 +953,6 @@ export function AdminScreen({
         </View>
       ) : null}
 
-      {adminSection === "overview" ? (
-        <View style={[styles.card, { borderLeftColor: colors.danger, borderLeftWidth: 4 }]}>
-          <Text style={styles.cardTitle}>Developer Database Tools</Text>
-          <Text style={styles.mutedText}>
-            Use this button to completely wipe all test users, network structures, orders, commissions, applications, and logs from the database, returning the system to a clean state.
-          </Text>
-          <View style={{ marginTop: 12 }}>
-            <PrimaryButton 
-              label="Reset Test Database" 
-              onPress={requestTestDataReset} 
-              loading={loading}
-            />
-          </View>
-        </View>
-      ) : null}
 
       {adminSection === "applications" ? (
         <View style={styles.card}>

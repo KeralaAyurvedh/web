@@ -85,9 +85,12 @@ Run `load-tests/spike-1000.js` only after the 500-user stage is stable.
 
 ## Final Launch Gate
 
-- Staging smoke tests pass.
-- Backend type-check, tests, and build pass.
-- Web lint, type-check, and build pass.
-- Mobile type-check passes and production APK points to the HTTPS backend.
-- k6 10/50/100-user stages pass; 500-user stage passes before a large public launch.
-- Admin confirms there are no test users/orders/commissions in production data.
+- [ ] Staging smoke tests pass.
+- [ ] Backend type-check, tests, and build pass.
+- [ ] Web lint, type-check, and build pass.
+- [ ] Mobile type-check passes and production APK points to the HTTPS backend.
+- [ ] k6 10/50/100-user stages pass; 500-user stage passes before a large public launch.
+- [ ] Run the **Deep Purge database script** against production to wipe all test users, orders, commissions, and products, leaving ONLY the master Admin account (`9999999999`).
+- [ ] Admin logs in and manually creates the official product catalog from the Admin Dashboard with finalized production prices, weights, and images.
+- [ ] Confirm the database contains zero legacy test users, products, or transactions before allowing public application submissions.
+

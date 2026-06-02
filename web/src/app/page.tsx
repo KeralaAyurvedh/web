@@ -1,9 +1,10 @@
-import { Star, StarHalf, ArrowUp, Activity, FileCheck, Award, HeartPulse, CheckCircle } from 'lucide-react';
+import { Star, StarHalf, ArrowUp, Activity, FileCheck, Award, HeartPulse, CheckCircle, Download, ShieldAlert, Smartphone } from 'lucide-react';
 import Image from 'next/image';
 import HeroSlideshow from '@/components/HeroSlideshow';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 
 const apkDownloadUrl = process.env.NEXT_PUBLIC_APK_DOWNLOAD_URL ?? '/uploads/kerala-ayurvedh.apk';
+
 
 export default function Home() {
   return (
@@ -176,6 +177,51 @@ export default function Home() {
                     iOS coming later
                   </span>
                 </div>
+
+                {/* 30-Second Sideload Installation Guide */}
+                <div className="mt-12 pt-8 border-t border-slate-200 transition-colors duration-300">
+                  <h4 className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400 mb-6">
+                    Quick 3-step Installation Guide
+                  </h4>
+                  <div className="grid gap-6 sm:grid-cols-3">
+                    <div className="flex gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition-colors duration-300">
+                        <Download className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800 mb-1 transition-colors duration-300">1. Download</p>
+                        <p className="text-xs text-slate-500 leading-relaxed transition-colors duration-300">
+                          Tap download and select <strong>"Download anyway"</strong> on Chrome's safe warning.
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition-colors duration-300">
+                        <ShieldAlert className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800 mb-1 transition-colors duration-300">2. Allow Source</p>
+                        <p className="text-xs text-slate-500 leading-relaxed transition-colors duration-300">
+                          If prompted on install, tap <strong>"Settings"</strong> and toggle <strong>"Allow from this source"</strong>.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition-colors duration-300">
+                        <Smartphone className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800 mb-1 transition-colors duration-300">3. Install & Open</p>
+                        <p className="text-xs text-slate-500 leading-relaxed transition-colors duration-300">
+                          Tap <strong>"Install"</strong>, wait a moment, and safely open your secure wellness app!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               </AnimateOnScroll>
             </div>
             <AnimateOnScroll className="relative min-h-[360px] rounded-[2rem] overflow-hidden border border-slate-200 shadow-xl bg-white">
