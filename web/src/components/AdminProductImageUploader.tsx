@@ -3,7 +3,14 @@
 import { useState } from "react";
 import { ImageUp, Loader2 } from "lucide-react";
 
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/+$/, "");
+let API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/+$/, "");
+
+if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+  if (API_URL.includes("localhost") || API_URL.includes("127.0.0.1")) {
+    API_URL = "https://web-laqb.onrender.com";
+  }
+}
+
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 function readFileAsBase64(file: File) {

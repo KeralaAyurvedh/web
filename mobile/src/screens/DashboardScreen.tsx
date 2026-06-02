@@ -295,14 +295,32 @@ export function DashboardScreen({ session, onNavigate }: { session: Session; onN
       />
 
       <SectionHeader title="Featured Products" />
-      {selectedProduct ? (
-        <ProductDetailCard
-          product={selectedProduct}
-          session={session}
-          onNavigate={onNavigate}
-          onClose={() => setSelectedProduct(null)}
-        />
-      ) : null}
+      <Modal
+        visible={selectedProduct !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedProduct(null)}
+      >
+        <View style={styles.memberModalLayer}>
+          <Pressable style={styles.memberModalScrim} onPress={() => setSelectedProduct(null)} />
+          <View style={styles.memberDetailSheet}>
+            <View style={styles.memberDetailHandle} />
+            {selectedProduct && (
+              <ScrollView style={{ maxHeight: 520 }} showsVerticalScrollIndicator={false}>
+                <ProductDetailCard
+                  product={selectedProduct}
+                  session={session}
+                  onNavigate={(tab) => {
+                    setSelectedProduct(null);
+                    onNavigate(tab);
+                  }}
+                  onClose={() => setSelectedProduct(null)}
+                />
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
       {productError ? <ErrorState message={productError} onRetry={loadProducts} /> : null}
       {loadingProducts && products.length === 0 ? (
         <ProductLoadingGrid />
@@ -1557,11 +1575,32 @@ const styles = StyleSheet.create({
   },
   productDetailCard: {
     backgroundColor: colors.white,
+    paddingVertical: 8
+  },
+  memberModalLayer: {
+    flex: 1,
+    justifyContent: "flex-end"
+  },
+  memberModalScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(15,23,42,0.45)"
+  },
+  memberDetailSheet: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    padding: 20,
+    paddingBottom: 30,
     borderWidth: 1,
-    borderColor: colors.slate200,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16
+    borderColor: "#e7eee7"
+  },
+  memberDetailHandle: {
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.slate200,
+    alignSelf: "center",
+    marginBottom: 14
   },
   productDetailHeader: {
     flexDirection: "row",
