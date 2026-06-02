@@ -12,7 +12,6 @@ import {
   RefreshControl
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
-import { File } from "expo-file-system";
 import { Session, Product, User, StockAdjustment, ProductAvailability, Order, TabKey } from "../constants/types";
 import { apiRequest, formatMoney, mediaUrl, confirmAction } from "../services/api";
 import { colors } from "../constants/theme";
@@ -38,6 +37,24 @@ type SelectedProductImage = {
   mimeType: "image/jpeg" | "image/png" | "image/webp";
   size?: number;
 };
+
+function readFileAsBase64(fileUri: string): Promise<string> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const response = await fetch(fileUri);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      reader.onload = () => {
+        const value = String(reader.result || "");
+        resolve(value.includes(",") ? value.split(",")[1] : value);
+      };
+      reader.onerror = () => reject(new Error("Could not read selected image"));
+      reader.readAsDataURL(blob);
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
 
 export function ProductsScreen({
   session,
@@ -281,8 +298,7 @@ export function ProductsScreen({
   }
 
   async function uploadProductImage(productId: string, image: SelectedProductImage): Promise<Product> {
-    const file = new File(image.uri);
-    const base64 = await file.base64();
+    const base64 = await readFileAsBase64(image.uri);
     const result = await apiRequest<{ product: Product; imageUrl: string }>(`/admin/products/${productId}/image`, {
       method: "POST",
       headers: { Authorization: `Bearer ${session.token}` },

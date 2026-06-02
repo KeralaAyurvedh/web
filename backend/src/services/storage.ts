@@ -327,6 +327,14 @@ export async function getRawFileAccess(fileId: string, expires?: string, signatu
     return { file, forbidden: true as const };
   }
 
+  if (!file.isPrivate && file.publicUrl) {
+    if (file.storageProvider === FileAssetStorageProvider.LOCAL) {
+      const relativeKey = file.key.replace(/^private\//, "").replace(/^public\//, "");
+      return { file, absolutePath: storagePath(config.storage.localUploadDir, relativeKey) };
+    }
+    return { file, url: file.publicUrl };
+  }
+
   const relativeKey = file.key.replace(/^private\//, "").replace(/^public\//, "");
   if (file.storageProvider === FileAssetStorageProvider.LOCAL) {
     const root = file.isPrivate ? config.storage.localPrivateUploadDir : config.storage.localUploadDir;
