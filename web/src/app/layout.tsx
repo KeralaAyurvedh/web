@@ -7,7 +7,27 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Kerala Ayurvedh | Authentic Ayurveda',
   description: 'Premium Ayurvedic solutions.',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon-16x16.png', type: 'image/png', sizes: '16x16' },
+      { url: '/icon-32x32.png', type: 'image/png', sizes: '32x32' },
+      { url: '/icon-48x48.png', type: 'image/png', sizes: '48x48' },
+    ],
+    apple: [
+      { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    other: [
+      {
+        rel: 'shortcut icon',
+        url: '/icon-48x48.png',
+        sizes: '48x48',
+        type: 'image/png',
+      },
+    ],
+  },
 };
+
 
 export default function RootLayout({
   children,
