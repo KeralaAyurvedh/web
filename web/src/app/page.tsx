@@ -170,7 +170,7 @@ export default function Home() {
                   Download the Android app to explore products, receive wellness guidance, place orders quickly, and stay connected with our latest Ayurvedic offerings.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <a href={apkDownloadUrl} className="inline-flex items-center justify-center rounded-full bg-brand-600 px-8 py-4 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 hover:bg-brand-500 transition-colors">
+                  <a href={apkDownloadUrl} download="kerala-ayurvedh.apk" className="inline-flex items-center justify-center rounded-full bg-brand-600 px-8 py-4 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 hover:bg-brand-500 transition-colors">
                     Download Android App
                   </a>
                   <span className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-8 py-4 text-sm font-semibold text-slate-500">
