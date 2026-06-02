@@ -327,10 +327,40 @@ export function DashboardScreen({ session, onNavigate }: { session: Session; onN
       ) : visibleProducts.length === 0 && !loadingProducts ? (
         <PremiumProductEmptyState isAdmin={session.user.role === "ADMIN"} onAddProduct={() => onNavigate("products")} />
       ) : (
-        <View style={[styles.homeProductGrid, !useTwoColumns && styles.homeProductGridSingle]}>
-          {visibleProducts.map((product) => (
-            <HomeProductCard key={product.id} product={product} onView={() => setSelectedProduct(product)} />
-          ))}
+        <View style={{ paddingHorizontal: 12, marginTop: 8, gap: 16 }}>
+          {Array.from({ length: Math.ceil(visibleProducts.length / (useTwoColumns ? 2 : 1)) }).map((_, rowIndex) => {
+            const columns = useTwoColumns ? 2 : 1;
+            const rowProducts = visibleProducts.slice(rowIndex * columns, rowIndex * columns + columns);
+            const hasSelected = rowProducts.some(p => p.id === selectedProduct?.id);
+
+            return (
+              <View key={`row-${rowIndex}`} style={{ gap: 8 }}>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {rowProducts.map((product) => (
+                    <HomeProductCard 
+                      key={product.id} 
+                      product={product} 
+                      onView={() => setSelectedProduct(selectedProduct?.id === product.id ? null : product)} 
+                    />
+                  ))}
+                  {rowProducts.length === 1 && useTwoColumns && <View style={{ flex: 1, minWidth: "46%" }} />}
+                </View>
+                {hasSelected && selectedProduct && (
+                  <View style={{ backgroundColor: colors.white, borderRadius: 12, borderWidth: 1, borderColor: colors.brand200, padding: 2, overflow: "hidden" }}>
+                    <ProductDetailCard
+                      product={selectedProduct}
+                      session={session}
+                      onNavigate={(tab) => {
+                        setSelectedProduct(null);
+                        onNavigate(tab);
+                      }}
+                      onClose={() => setSelectedProduct(null)}
+                    />
+                  </View>
+                )}
+              </View>
+            );
+          })}
         </View>
       )}
 
@@ -597,7 +627,16 @@ function HomeProductCard({ product, onView }: { product: Product; onView: () => 
       <View style={styles.homeProductInfo}>
         <Text style={styles.homeProductName} numberOfLines={1}>{product.name}</Text>
         <Text style={styles.homeProductCategory}>{product.category}</Text>
-        <Text style={styles.homeProductPrice}>{formatMoney(product.price)}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <Text style={styles.homeProductPrice}>
+            {product.discountPrice ? formatMoney(product.discountPrice) : formatMoney(product.price)}
+          </Text>
+          {!!product.discountPrice && (
+            <Text style={{ fontSize: 12, color: colors.slate500, textDecorationLine: "line-through" }}>
+              {formatMoney(product.price)}
+            </Text>
+          )}
+        </View>
         <Text style={styles.homeProductStatus}>{product.availability.replaceAll("_", " ")}</Text>
       </View>
     </Pressable>
@@ -1241,8 +1280,8 @@ const styles = StyleSheet.create({
     shadowRadius: 2
   },
   homeProductImageWrap: {
-    height: 100,
-    backgroundColor: colors.slate50,
+    height: 120,
+    backgroundColor: colors.white,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
@@ -1251,7 +1290,7 @@ const styles = StyleSheet.create({
   homeProductImage: {
     width: "100%",
     height: "100%",
-    resizeMode: "cover"
+    resizeMode: "contain"
   },
   homeProductFallbackImage: {
     width: 60,

@@ -94,6 +94,7 @@ export function ProductsScreen({
   const [productBenefits, setProductBenefits] = useState("");
   const [productSize, setProductSize] = useState("");
   const [productPrice, setProductPrice] = useState("");
+  const [productDiscountPrice, setProductDiscountPrice] = useState("");
   const [productStock, setProductStock] = useState("0");
   const [productAvailability, setProductAvailability] = useState<ProductAvailability>("AVAILABLE");
   const [selectedProductImage, setSelectedProductImage] = useState<SelectedProductImage | null>(null);
@@ -185,6 +186,7 @@ export function ProductsScreen({
           benefits: productBenefits,
           size: productSize,
           price: productPrice,
+          discountPrice: productDiscountPrice || undefined,
           stock: productStock,
           availability: productAvailability
         })
@@ -226,6 +228,7 @@ export function ProductsScreen({
           benefits: productBenefits,
           size: productSize,
           price: productPrice,
+          discountPrice: productDiscountPrice || undefined,
           stock: productStock,
           availability: productAvailability
         })
@@ -372,8 +375,9 @@ export function ProductsScreen({
     setProductFullDescription(product.fullDescription);
     setProductUsage(product.usageInstructions);
     setProductBenefits(product.benefits);
-    setProductSize(product.size);
+    setProductSize(product.size || "");
     setProductPrice(String(product.price));
+    setProductDiscountPrice(product.discountPrice ? String(product.discountPrice) : "");
     setProductStock(String(product.stock ?? 0));
     setProductAvailability(product.availability);
     setSelectedProductImage(null);
@@ -392,6 +396,7 @@ export function ProductsScreen({
     setProductBenefits("");
     setProductSize("");
     setProductPrice("");
+    setProductDiscountPrice("");
     setProductStock("0");
     setProductAvailability("AVAILABLE");
     setSelectedProductImage(null);
@@ -476,8 +481,9 @@ export function ProductsScreen({
           <Input label="Full description" value={productFullDescription} onChangeText={setProductFullDescription} />
           <Input label="Usage instructions" value={productUsage} onChangeText={setProductUsage} />
           <Input label="Benefits" value={productBenefits} onChangeText={setProductBenefits} />
-          <Input label="Weight / size" value={productSize} onChangeText={setProductSize} />
+          <Input label="Size" value={productSize} onChangeText={setProductSize} />
           <Input label="Price" value={productPrice} onChangeText={setProductPrice} keyboardType="numeric" />
+          <Input label="Discount Price" value={productDiscountPrice} onChangeText={setProductDiscountPrice} keyboardType="numeric" />
           <Input label="Stock" value={productStock} onChangeText={setProductStock} keyboardType="numeric" />
           <Text style={styles.inputLabel}>Availability</Text>
           <OptionList
@@ -1019,7 +1025,8 @@ const styles = StyleSheet.create({
   },
   productImageInner: {
     width: "100%",
-    height: "100%"
+    height: "100%",
+    resizeMode: "contain"
   },
   productLogoFallback: {
     width: 62,

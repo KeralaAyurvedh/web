@@ -29,6 +29,7 @@ export type Product = {
   benefits: string;
   size: string;
   price: string;
+  discountPrice?: number;
   imageUrl?: string;
   stock?: number;
   availability: ProductAvailability;

@@ -39,6 +39,7 @@ const productSchema = z.object({
   benefits: z.string().optional().default(""),
   size: z.string().optional().default(""),
   price: z.coerce.number().positive(),
+  discountPrice: z.coerce.number().positive().optional(),
   imageUrl: z.string().trim().optional()
     .transform((value) => value === "" ? undefined : value)
     .refine((value) => !value || isValidProductImageUrl(value), "Image URL must be a direct JPG, PNG, WebP, /uploads, or /files URL"),
@@ -69,6 +70,7 @@ productsRouter.get("/", requireAuth, async (req, res) => {
       benefits: true,
       size: true,
       price: true,
+      discountPrice: true,
       imageUrl: true,
       stock: true,
       availability: true,
