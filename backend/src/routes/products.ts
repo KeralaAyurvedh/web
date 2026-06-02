@@ -6,6 +6,17 @@ import { prisma } from "../utils/prisma";
 
 export const productsRouter = Router();
 
+const PRODUCT_LIST_CACHE_TTL_MS = 60_000;
+type ProductListCacheEntry = {
+  expiresAt: number;
+  payload: unknown;
+};
+const productListCache = new Map<string, ProductListCacheEntry>();
+
+export function invalidateProductListCache() {
+  productListCache.clear();
+}
+
 function isValidProductImageUrl(value: string) {
   if (!value) return true;
   if (value.startsWith("/uploads/") || value.startsWith("/files/")) return true;
@@ -37,9 +48,35 @@ const productSchema = z.object({
 });
 
 productsRouter.get("/", requireAuth, async (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
+  const cacheKey = `${req.user!.role === Role.ADMIN ? "admin" : "public"}:${baseUrl}`;
+  const cached = productListCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return res.json(cached.payload);
+  }
+
   const products = await prisma.product.findMany({
     where: req.user!.role === Role.ADMIN ? {} : { isActive: true },
-    orderBy: { createdAt: "desc" }
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      category: true,
+      description: true,
+      shortDescription: true,
+      fullDescription: true,
+      usageInstructions: true,
+      benefits: true,
+      size: true,
+      price: true,
+      imageUrl: true,
+      stock: true,
+      availability: true,
+      isActive: true,
+      createdById: true,
+      createdAt: true,
+      updatedAt: true
+    }
   });
   const productImageFiles = await prisma.fileAsset.findMany({
     where: {
@@ -57,7 +94,6 @@ productsRouter.get("/", requireAuth, async (req, res) => {
     }
   }
 
-  const baseUrl = `${req.protocol}://${req.get("host")}`;
   const formatImageUrl = (productId: string, url?: string | null) => {
     const fileId = imageFileByProductId.get(productId);
     if (fileId) return `${baseUrl}/files/${fileId}/raw`;
@@ -67,7 +103,7 @@ productsRouter.get("/", requireAuth, async (req, res) => {
     return `${baseUrl}${cleanUrl}`;
   };
 
-  return res.json({
+  const payload = {
     products: products.map((product) => ({
       ...product,
       imageUrl: formatImageUrl(product.id, product.imageUrl),
@@ -76,7 +112,14 @@ productsRouter.get("/", requireAuth, async (req, res) => {
         ? ProductAvailability.OUT_OF_STOCK
         : product.availability
     }))
+  };
+
+  productListCache.set(cacheKey, {
+    expiresAt: Date.now() + PRODUCT_LIST_CACHE_TTL_MS,
+    payload
   });
+
+  return res.json(payload);
 });
 
 productsRouter.get("/:id", requireAuth, async (req, res) => {
@@ -130,6 +173,7 @@ productsRouter.post("/", requireAuth, requireRoles(Role.ADMIN), async (req, res)
       createdById: req.user!.id
     }
   });
+  invalidateProductListCache();
 
   const baseUrl = `${req.protocol}://${req.get("host")}`;
   const formatImageUrl = (url?: string | null) => {
@@ -157,6 +201,7 @@ productsRouter.put("/:id", requireAuth, requireRoles(Role.ADMIN), async (req, re
     where: { id: String(req.params.id) },
     data: parsed.data
   });
+  invalidateProductListCache();
 
   const baseUrl = `${req.protocol}://${req.get("host")}`;
   const formatImageUrl = (url?: string | null) => {
@@ -179,6 +224,7 @@ productsRouter.delete("/:id", requireAuth, requireRoles(Role.ADMIN), async (req,
     where: { id: String(req.params.id) },
     data: { isActive: false }
   });
+  invalidateProductListCache();
 
   return res.json({ product });
 });

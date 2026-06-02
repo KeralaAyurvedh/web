@@ -26,6 +26,12 @@ const createUserSchema = z.object({
   placementType: z.enum(PlacementType).default(PlacementType.NORMAL)
 });
 
+function positiveIntQuery(value: unknown, fallback: number, max: number) {
+  const parsed = typeof value === "string" ? Number(value) : Number.NaN;
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(Math.trunc(parsed), 1), max);
+}
+
 function referralCodeFromPhone(phone: string) {
   const tail = phone.replace(/\D/g, "").slice(-6).padStart(6, "0");
   return `KA${tail}${Math.floor(Math.random() * 900 + 100)}`;
@@ -213,22 +219,38 @@ usersRouter.get("/me/network", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "Permission denied" });
   }
   const userId = req.user!.id;
+  const limit = positiveIntQuery(req.query.limit, 100, 500);
+  const page = positiveIntQuery(req.query.page, 1, 10_000);
+  const skip = (page - 1) * limit;
 
-  const downline = await prisma.user.findMany({
-    where: { sponsorId: userId },
-    select: {
-      id: true,
-      name: true,
-      phone: true,
-      role: true,
-      status: true,
-      placementType: true,
-      createdAt: true
-    },
-    orderBy: { createdAt: "desc" }
+  const [downline, total] = await Promise.all([
+    prisma.user.findMany({
+      where: { sponsorId: userId },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        role: true,
+        status: true,
+        placementType: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit
+    }),
+    prisma.user.count({ where: { sponsorId: userId } })
+  ]);
+
+  return res.json({
+    downline,
+    pagination: {
+      page,
+      limit,
+      total,
+      hasMore: skip + downline.length < total
+    }
   });
-
-  return res.json({ downline });
 });
 
 usersRouter.get("/options", requireAuth, async (req, res) => {
@@ -394,6 +416,7 @@ usersRouter.get("/tree", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "Permission denied" });
   }
   const actor = req.user!;
+  const limit = positiveIntQuery(req.query.limit, 1000, 5000);
 
   const users = await prisma.user.findMany({
     where: actor.role === Role.ADMIN ? {} : { status: "ACTIVE" },
@@ -412,7 +435,8 @@ usersRouter.get("/tree", requireAuth, async (req, res) => {
     orderBy: [
       { role: "asc" },
       { createdAt: "asc" }
-    ]
+    ],
+    take: limit
   });
 
   if (actor.role === Role.ADMIN) {
@@ -423,7 +447,12 @@ usersRouter.get("/tree", requireAuth, async (req, res) => {
         role: "COMPANY",
         status: "ACTIVE"
       },
-      users
+      users,
+      meta: {
+        limit,
+        returned: users.length,
+        truncated: users.length === limit
+      }
     });
   }
 
@@ -445,7 +474,12 @@ usersRouter.get("/tree", requireAuth, async (req, res) => {
 
   return res.json({
     root: rootUser ? { ...rootUser, sponsorId: null } : undefined,
-    users: visibleUsers.map((user) => user.id === actor.id ? { ...user, sponsorId: null } : user)
+    users: visibleUsers.map((user) => user.id === actor.id ? { ...user, sponsorId: null } : user),
+    meta: {
+      limit,
+      returned: visibleUsers.length,
+      truncated: users.length === limit
+    }
   });
 });
 

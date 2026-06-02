@@ -22,17 +22,118 @@ import {
   UserStatus
 } from "@prisma/client";
 import { z } from "zod";
-import { requireAuth, requireRoles } from "../middlewares/auth";
+import { invalidateAuthUserCache, requireAuth, requireRoles } from "../middlewares/auth";
 import { prisma } from "../utils/prisma";
 import { config } from "../utils/config";
 import { writeAuditLog } from "../utils/audit";
 import { sendLoginCredentialsEmail, sendRoleUpgradeDecisionEmail } from "../utils/email";
 import { assertCanAddDownline, assertCanCreateBetaManager } from "../services/networkRules";
 import { getSignedViewUrl, uploadFile } from "../services/storage";
+import { invalidateProductListCache } from "./products";
 
 export const adminRouter = Router();
 
 adminRouter.use(requireAuth, requireRoles(Role.ADMIN));
+
+const ADMIN_DASHBOARD_CACHE_TTL_MS = 30_000;
+let adminDashboardCache: { expiresAt: number; payload: unknown } | null = null;
+let adminDashboardRefreshPromise: Promise<void> | null = null;
+
+function clearAdminDashboardCache() {
+  adminDashboardCache = null;
+}
+
+async function buildAdminDashboardPayload() {
+  const [
+    totalUsers,
+    totalProducts,
+    activeProducts,
+    comingSoonProducts,
+    outOfStockProducts,
+    lowStockProducts,
+    pendingUserPayments,
+    pendingOrderPayments,
+    pendingApplications,
+    commissionTotals,
+    matrices
+  ] = await Promise.all([
+    prisma.user.count(),
+    prisma.product.count(),
+    prisma.product.count({ where: { isActive: true } }),
+    prisma.product.count({ where: { isActive: true, availability: ProductAvailability.COMING_SOON } }),
+    prisma.product.count({ where: { isActive: true, stock: { lte: 0 }, availability: ProductAvailability.AVAILABLE } }),
+    prisma.product.findMany({
+      where: { isActive: true, stock: { lte: 5 }, availability: ProductAvailability.AVAILABLE },
+      select: { id: true, name: true, category: true, stock: true, availability: true },
+      orderBy: [{ stock: "asc" }, { name: "asc" }],
+      take: 10
+    }),
+    prisma.user.count({
+      where: {
+        role: { in: [Role.BETA_MANAGER, Role.LEVEL_1, Role.LEVEL_2, Role.CUSTOMER] },
+        companyPaymentConfirmedAt: null
+      }
+    }),
+    prisma.order.count({ where: { paymentStatus: PaymentStatus.PENDING } }),
+    prisma.memberApplication.count({ where: { status: ApplicationStatus.PENDING } }),
+    prisma.commissionLedger.groupBy({
+      by: ["status"],
+      _sum: { amount: true },
+      _count: { id: true }
+    }),
+    prisma.betaMatrix.findMany({
+      include: {
+        rootManager: { select: { name: true, phone: true } },
+        betaManager: { select: { name: true, phone: true } }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 25
+    })
+  ]);
+
+  return {
+    stats: {
+      totalUsers,
+      totalProducts,
+      activeProducts,
+      comingSoonProducts,
+      outOfStockProducts,
+      lowStockCount: lowStockProducts.length,
+      lowStockProducts,
+      pendingUserPayments,
+      pendingOrderPayments,
+      pendingApplications,
+      commissions: commissionTotals.map((item) => ({
+        status: item.status,
+        count: item._count.id,
+        amount: item._sum.amount ?? 0
+      })),
+      matrices
+    }
+  };
+}
+
+async function refreshAdminDashboardCache() {
+  const payload = await buildAdminDashboardPayload();
+  adminDashboardCache = {
+    expiresAt: Date.now() + ADMIN_DASHBOARD_CACHE_TTL_MS,
+    payload
+  };
+}
+
+adminRouter.use((req, res, next) => {
+  if (req.method !== "GET") {
+    res.on("finish", () => {
+      if (res.statusCode < 500) {
+        clearAdminDashboardCache();
+        if (req.path.includes("/products/")) {
+          invalidateProductListCache();
+        }
+      }
+    });
+  }
+  next();
+});
 
 function referralCodeFromPhone(phone: string) {
   const tail = phone.replace(/\D/g, "").slice(-6).padStart(6, "0");
@@ -161,72 +262,23 @@ async function folderStats(root: string) {
 }
 
 adminRouter.get("/dashboard", async (_req, res) => {
-  const [
-    totalUsers,
-    totalProducts,
-    activeProducts,
-    comingSoonProducts,
-    outOfStockProducts,
-    lowStockProducts,
-    pendingUserPayments,
-    pendingOrderPayments,
-    pendingApplications,
-    commissionTotals,
-    matrices
-  ] = await Promise.all([
-    prisma.user.count(),
-    prisma.product.count(),
-    prisma.product.count({ where: { isActive: true } }),
-    prisma.product.count({ where: { isActive: true, availability: ProductAvailability.COMING_SOON } }),
-    prisma.product.count({ where: { isActive: true, stock: { lte: 0 }, availability: ProductAvailability.AVAILABLE } }),
-    prisma.product.findMany({
-      where: { isActive: true, stock: { lte: 5 }, availability: ProductAvailability.AVAILABLE },
-      select: { id: true, name: true, category: true, stock: true, availability: true },
-      orderBy: [{ stock: "asc" }, { name: "asc" }],
-      take: 10
-    }),
-    prisma.user.count({
-      where: {
-        role: { in: [Role.BETA_MANAGER, Role.LEVEL_1, Role.LEVEL_2, Role.CUSTOMER] },
-        companyPaymentConfirmedAt: null
-      }
-    }),
-    prisma.order.count({ where: { paymentStatus: PaymentStatus.PENDING } }),
-    prisma.memberApplication.count({ where: { status: ApplicationStatus.PENDING } }),
-    prisma.commissionLedger.groupBy({
-      by: ["status"],
-      _sum: { amount: true },
-      _count: { id: true }
-    }),
-    prisma.betaMatrix.findMany({
-      include: {
-        rootManager: { select: { name: true, phone: true } },
-        betaManager: { select: { name: true, phone: true } }
-      },
-      orderBy: { createdAt: "desc" }
-    })
-  ]);
+  if (adminDashboardCache && adminDashboardCache.expiresAt > Date.now()) {
+    return res.json(adminDashboardCache.payload);
+  }
 
-  return res.json({
-    stats: {
-      totalUsers,
-      totalProducts,
-      activeProducts,
-      comingSoonProducts,
-      outOfStockProducts,
-      lowStockCount: lowStockProducts.length,
-      lowStockProducts,
-      pendingUserPayments,
-      pendingOrderPayments,
-      pendingApplications,
-      commissions: commissionTotals.map((item) => ({
-        status: item.status,
-        count: item._count.id,
-        amount: item._sum.amount ?? 0
-      })),
-      matrices
+  if (adminDashboardCache) {
+    if (!adminDashboardRefreshPromise) {
+      adminDashboardRefreshPromise = refreshAdminDashboardCache()
+        .catch((error) => console.error("Admin dashboard cache refresh failed", error))
+        .finally(() => {
+          adminDashboardRefreshPromise = null;
+        });
     }
-  });
+    return res.json(adminDashboardCache.payload);
+  }
+
+  await refreshAdminDashboardCache();
+  return res.json(adminDashboardCache!.payload);
 });
 
 adminRouter.get("/reports", async (req, res) => {
@@ -1273,6 +1325,7 @@ adminRouter.patch("/users/:id/status", async (req, res) => {
       referralCode: true
     }
   });
+  invalidateAuthUserCache(user.id);
 
   await writeAuditLog({
     actorId: req.user!.id,
