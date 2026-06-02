@@ -98,7 +98,10 @@ function assertSupabaseConfig() {
 
 function supabaseStorageBaseUrl() {
   assertSupabaseConfig();
-  return config.storage.supabaseUrl!.replace(/\/$/, "");
+  let url = config.storage.supabaseUrl!.replace(/\/$/, "");
+  // Clean up any trailing /rest/v1 or database REST API suffix
+  url = url.replace(/\/rest\/v1\/?$/, "").replace(/\/rest\/?$/, "");
+  return url;
 }
 
 function supabaseObjectUrl(key: string) {
