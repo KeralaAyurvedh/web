@@ -17,6 +17,16 @@ export const stagedLoad = [
 ];
 
 export function login(phone = __ENV.USER_PHONE, password = __ENV.USER_PASSWORD) {
+  if (phone === __ENV.ADMIN_PHONE && __ENV.ADMIN_TOKEN) {
+    return __ENV.ADMIN_TOKEN;
+  }
+  if (phone === __ENV.USER_PHONE && __ENV.USER_TOKEN) {
+    return __ENV.USER_TOKEN;
+  }
+  if (__ENV.AUTH_TOKEN) {
+    return __ENV.AUTH_TOKEN;
+  }
+
   if (!phone || !password) {
     fail("USER_PHONE and USER_PASSWORD are required");
   }
