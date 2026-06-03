@@ -3,7 +3,7 @@ import Image from 'next/image';
 import HeroSlideshow from '@/components/HeroSlideshow';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 
-const apkDownloadUrl = process.env.NEXT_PUBLIC_APK_DOWNLOAD_URL || '/uploads/kerala-ayurvedh.apk';
+const apkDownloadUrl = '/uploads/kerala-ayurvedh.apk';
 
 
 export default function Home() {
@@ -191,7 +191,7 @@ export default function Home() {
                       <div>
                         <p className="text-sm font-bold text-slate-800 mb-1 transition-colors duration-300">1. Download</p>
                         <p className="text-xs text-slate-500 leading-relaxed transition-colors duration-300">
-                          Tap download and select <strong>"Download anyway"</strong> on Chrome's safe warning.
+                          Tap download and select <strong>&quot;Download anyway&quot;</strong> on Chrome&apos;s safe warning.
                         </p>
                       </div>
                     </div>
@@ -203,7 +203,7 @@ export default function Home() {
                       <div>
                         <p className="text-sm font-bold text-slate-800 mb-1 transition-colors duration-300">2. Allow Source</p>
                         <p className="text-xs text-slate-500 leading-relaxed transition-colors duration-300">
-                          If prompted on install, tap <strong>"Settings"</strong> and toggle <strong>"Allow from this source"</strong>.
+                          If prompted on install, tap <strong>&quot;Settings&quot;</strong> and toggle <strong>&quot;Allow from this source&quot;</strong>.
                         </p>
                       </div>
                     </div>
@@ -215,7 +215,7 @@ export default function Home() {
                       <div>
                         <p className="text-sm font-bold text-slate-800 mb-1 transition-colors duration-300">3. Install & Open</p>
                         <p className="text-xs text-slate-500 leading-relaxed transition-colors duration-300">
-                          Tap <strong>"Install"</strong>, wait a moment, and safely open your secure wellness app!
+                          Tap <strong>&quot;Install&quot;</strong>, wait a moment, and safely open your secure wellness app!
                         </p>
                       </div>
                     </div>
