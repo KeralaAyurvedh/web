@@ -1,5 +1,6 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
+import fs from "fs";
 import path from "path";
 import { config } from "./utils/config";
 import { healthRouter } from "./routes/health";
@@ -21,6 +22,16 @@ function storagePath(root: string) {
   return path.isAbsolute(root) ? root : path.join(process.cwd(), root);
 }
 
+function findPublicApkPath() {
+  const fileName = "kerala-ayurvedh.apk";
+  const candidates = [
+    path.join(storagePath(config.storage.localUploadDir), fileName),
+    path.join(storagePath("public"), fileName)
+  ];
+
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
 export function createApp() {
   if (config.nodeEnv !== "production") {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -33,6 +44,14 @@ export function createApp() {
     origin: config.corsOrigins && config.corsOrigins.length > 0 ? config.corsOrigins : true
   }));
   app.use(express.json({ limit: config.jsonBodyLimit }));
+  app.get("/downloads/kerala-ayurvedh.apk", (_req, res) => {
+    const apkPath = findPublicApkPath();
+    if (!apkPath) {
+      return res.status(404).json({ error: "APK not found" });
+    }
+
+    return res.download(apkPath, "kerala-ayurvedh.apk");
+  });
   app.use("/uploads", express.static(storagePath(config.storage.localUploadDir)));
   if (config.storage.localUploadDir !== "public") {
     app.use("/uploads", express.static(storagePath("public")));
