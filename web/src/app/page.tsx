@@ -3,7 +3,7 @@ import Image from 'next/image';
 import HeroSlideshow from '@/components/HeroSlideshow';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 
-const apkDownloadUrl = 'https://web-laqb.onrender.com/downloads/kerala-ayurvedh.apk';
+const apkDownloadUrl = '/uploads/kerala-ayurvedh.apk';
 
 
 export default function Home() {
