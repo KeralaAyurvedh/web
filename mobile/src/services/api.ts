@@ -3,7 +3,7 @@ import { CountAmountRow, AdminReport } from "../constants/types";
 
 declare const process: { env?: { EXPO_PUBLIC_API_URL?: string } } | undefined;
 
-const defaultApiUrl = "http://localhost:4000";
+const defaultApiUrl = "https://web-laqb.onrender.com";
 
 export const API_URL = (
   typeof process !== "undefined" && process.env?.EXPO_PUBLIC_API_URL
